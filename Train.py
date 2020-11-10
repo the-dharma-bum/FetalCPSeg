@@ -84,6 +84,8 @@ def val(net, loader):
         images = images.cuda()
         masks  = masks.cuda()
         preds = net(images)
+        preds = preds.cpu().detach().numpy()
+        masks = masks.cpu().detach().numpy()
         metric_meter.update(dice_score(preds, masks))
     return metric_meter.avg
 
@@ -119,6 +121,7 @@ def main(args):
 
     for iteration in range(1, args.num_iteration+1):
         adjust_lr(optimizer, iteration, args.num_iteration)
+        
         train_loss = train_batch(net=net, optimizer=optimizer, loader=train_dataloader, 
                                  patch_size=args.patch_size, batch_size=args.train_batch_size)
         loss_meter.update(train_loss)
