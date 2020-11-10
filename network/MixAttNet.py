@@ -95,7 +95,7 @@ class FastMixBlock(nn.Module):
         for i in range(self.num_groups):
             self.grouped_conv.append(
                 nn.Sequential(
-                    nn.Conv2d(
+                    nn.Conv3d(
                         self.split_in_channels[i],
                         self.split_out_channels[i],
                         kernel_size[i],
@@ -134,7 +134,7 @@ class Attention(nn.Module):
         shortcut = x
         mix1 = self.conv1(self.mix1(x))
         mix2 = self.mix2(mix1)
-        att_map = F.sigmoid(self.conv2(mix2))
+        att_map = torch.sigmoid(self.conv2(mix2))
         out = self.norm1(x*att_map) + self.norm2(shortcut)
         return self.relu(out), att_map
 

@@ -30,7 +30,7 @@ class NiftiDataset(Dataset):
                                        resampling. If None, resampling will affect the resolution
                                        only and not the shape. Defaults to None. 
             transform (Transform, optional): Transformations to apply on couple (image, mask).
-                                             Bases on volumentations. Defaults to None.
+                                             Based on volumentations. Defaults to None.
                                              See https://github.com/ashawkey/volumentations.
         """
         super().__init__()
@@ -77,7 +77,7 @@ class NiftiDataset(Dataset):
         return transformed_data['image'], transformed_data['mask']
 
     def __getitem__(self, index: int) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
-        """ Loads, applies transforms and returns a couple (image, mask).
+        """ Load, apply transforms and return a couple (image, mask).
 
         Args:
             index (int): The dataset index (one index for one couple (image, mask)).

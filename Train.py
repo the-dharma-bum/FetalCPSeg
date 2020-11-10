@@ -85,7 +85,7 @@ def val(net, loader):
     return metric_meter.avg
 
 
-def main(args):
+def main(args):    
     torch.cuda.set_device(args.gpu_id)
 
     check_dir(args.output_path)
@@ -157,7 +157,7 @@ if __name__ == '__main__':
             self.val_fre = 200
             self.pre_fre = 20
 
-            self.patch_size = (64, 64, 64)
+            self.patch_size = (64, 64, 26)
 
             self.data_path = "/homes/l17vedre/Bureau/Sanssauvegarde/patnum_data/train"
             self.output_path = "output/"
