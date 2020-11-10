@@ -76,10 +76,13 @@ def train_batch(net, optimizer, loader, patch_size, batch_size):
 
 
 def val(net, loader):
+    print('Validation step')
     net.eval()
     metric_meter = AvgMeter()
     for batch in loader:
         images, masks = batch
+        images = images.cuda()
+        masks  = masks.cuda()
         preds = net(images)
         metric_meter.update(dice_score(preds, masks))
     return metric_meter.avg
