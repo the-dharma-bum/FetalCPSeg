@@ -8,8 +8,10 @@ from torch.nn import DataParallel
 from torch.nn import functional as F
 from torch.autograd import Variable
 
-from DataOp import TrainGenerator, get_list
-from Network import MixAttNet
+
+from data import DataModule
+
+from network import MixAttNet
 from Utils import check_dir, AvgMeter, dice_score
 
 
@@ -40,31 +42,31 @@ def loss_func(predict, label, pos_weight):
 def train_batch(net, optimizer, loader, patch_size, batch_size):
     net.train()
 
-    image, label = loader.get_item()
+    images, masks = next(iter(loader))
 
     # here we calculate the positive ratio in the input batch data
-    if np.where(label == 1)[0].shape[0] == 0:
+    if np.where(masks == 1)[0].shape[0] == 0:
         weight = 1
     else:
-        weight = batch_size*patch_size*patch_size*patch_size/np.where(label == 1)[0].shape[0]
+        weight = batch_size*patch_size[0]*patch_size[1]*patch_size[2]/np.where(masks == 1)[0].shape[0]
 
-    image = Variable(torch.from_numpy(image).cuda())
-    label = Variable(torch.from_numpy(label).cuda())
+    images = Variable(images.cuda())
+    masks  = Variable(masks.cuda())
 
-    predict = net(image)
+    predict = net(images)
 
     optimizer.zero_grad()
 
     weight = torch.FloatTensor([weight]).cuda()
-    loss1 = loss_func(predict[0], label, pos_weight=weight)
-    loss2 = loss_func(predict[1], label, pos_weight=weight)
-    loss3 = loss_func(predict[2], label, pos_weight=weight)
-    loss4 = loss_func(predict[3], label, pos_weight=weight)
-    loss5 = loss_func(predict[4], label, pos_weight=weight)
-    loss6 = loss_func(predict[5], label, pos_weight=weight)
-    loss7 = loss_func(predict[6], label, pos_weight=weight)
-    loss8 = loss_func(predict[7], label, pos_weight=weight)
-    loss9 = loss_func(predict[8], label, pos_weight=weight)
+    loss1 = loss_func(predict[0], masks, pos_weight=weight)
+    loss2 = loss_func(predict[1], masks, pos_weight=weight)
+    loss3 = loss_func(predict[2], masks, pos_weight=weight)
+    loss4 = loss_func(predict[3], masks, pos_weight=weight)
+    loss5 = loss_func(predict[4], masks, pos_weight=weight)
+    loss6 = loss_func(predict[5], masks, pos_weight=weight)
+    loss7 = loss_func(predict[6], masks, pos_weight=weight)
+    loss8 = loss_func(predict[7], masks, pos_weight=weight)
+    loss9 = loss_func(predict[8], masks, pos_weight=weight)
     loss = loss1 + \
            0.8*loss2 + 0.7*loss3 + 0.6*loss4 + 0.5*loss5 + \
            0.8*loss6 + 0.7*loss7 + 0.6*loss8 + 0.5*loss9
@@ -73,37 +75,13 @@ def train_batch(net, optimizer, loader, patch_size, batch_size):
     return loss.item()
 
 
-def val(net, val_list, patch_size):
+def val(net, loader):
     net.eval()
     metric_meter = AvgMeter()
-
-    for data_dict in val_list:
-
-        image_path = data_dict['image_path']
-        label_path = data_dict['label_path']
-        image = nib.load(image_path).get_fdata()
-        label = nib.load(label_path).get_fdata()
-        pre_count = np.zeros_like(image, dtype=np.float32)
-        predict = np.zeros_like(image, dtype=np.float32)
-
-        w, h, d = image.shape
-        x_list = np.squeeze(np.concatenate((np.arange(0, w - patch_size, patch_size // 4)[:, np.newaxis],
-                                            np.array([w - patch_size])[:, np.newaxis])).astype(np.int))
-        y_list = np.squeeze(np.concatenate((np.arange(0, h - patch_size, patch_size // 4)[:, np.newaxis],
-                                            np.array([h - patch_size])[:, np.newaxis])).astype(np.int))
-        z_list = np.squeeze(np.concatenate((np.arange(0, d - patch_size, patch_size // 4)[:, np.newaxis],
-                                            np.array([d - patch_size])[:, np.newaxis])).astype(np.int))
-        for x in x_list:
-            for y in y_list:
-                for z in z_list:
-                    image_patch = image[x:x+patch_size, y:y+patch_size, z:z+patch_size].astype(np.float32)
-                    image_patch_tensor = torch.from_numpy(image_patch[np.newaxis, np.newaxis, ...]).cuda()
-                    pre_patch = net(image_patch_tensor).squeeze()
-                    predict[x:x+patch_size, y:y+patch_size, z:z+patch_size] += pre_patch.cpu().data.numpy()
-                    pre_count[x:x+patch_size, y:y+patch_size, z:z+patch_size] += 1
-        predict /= pre_count
-        metric_meter.update(dice_score(predict, label))
-
+    for batch in loader:
+        images, masks = batch
+        preds = net(images)
+        metric_meter.update(dice_score(preds, masks))
     return metric_meter.avg
 
 
@@ -114,11 +92,19 @@ def main(args):
     ckpt_path = os.path.join(args.output_path, "ckpt")
     check_dir(ckpt_path)
 
-    train_list, test_list = get_list(dir_path=args.data_path)
+    dm = DataModule(
+            args.data_path,
+            target_resolution=args.target_resolution,
+            target_shape=args.target_shape,
+            patch_size=args.patch_size,
+            train_batch_size=args.train_batch_size,
+            val_batch_size=args.val_batch_size,
+            num_workers=args.num_workers
+        )
+    dm.setup()
+    train_dataloader, val_dataloder = dm.train_dataloader(),  dm.val_dataloader()
 
-    train_generator = TrainGenerator(train_list,
-                                     batch_size=args.batch_size,
-                                     patch_size=args.patch_size)
+
     net = MixAttNet().cuda()
     optimizer = torch.optim.Adam(net.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
@@ -130,7 +116,8 @@ def main(args):
 
     for iteration in range(1, args.num_iteration+1):
         adjust_lr(optimizer, iteration, args.num_iteration)
-        train_loss = train_batch(net=net, optimizer=optimizer, loader=train_generator, patch_size=args.patch_size, batch_size=args.batch_size)
+        train_loss = train_batch(net=net, optimizer=optimizer, loader=train_dataloader, 
+                                 patch_size=args.patch_size, batch_size=args.train_batch_size)
         loss_meter.update(train_loss)
 
         if iteration % args.pre_fre == 0:
@@ -141,7 +128,7 @@ def main(args):
             loss_meter.reset()
 
         if iteration % args.val_fre == 0:
-            val_dice = val(net, test_list, args.patch_size)
+            val_dice = val(net, dm.val_dataloader())
             if val_dice > best_metric:
                 torch.save(net.state_dict(), os.path.join(ckpt_path, "best_val.pth.gz"))
                 best_metric = val_dice
@@ -157,18 +144,23 @@ if __name__ == '__main__':
         def __init__(self):
             self.gpu_id = 0
 
+            self.target_resolution = (1.5, 1.5, 8.),
+            self.target_shape = None,
+
             self.lr = 1e-3
             self.weight_decay = 1e-4
-            self.batch_size = 4
+            self.train_batch_size = 4
+            self.val_batch_size = 4
+            self.num_workers = 4
 
             self.num_iteration = 4000
             self.val_fre = 200
             self.pre_fre = 20
 
-            self.patch_size = 64
+            self.patch_size = (64, 64, 64)
 
-            self.data_path = 'Data/'
-            self.output_path = 'output/'
+            self.data_path = "/homes/l17vedre/Bureau/Sanssauvegarde/patnum_data/train"
+            self.output_path = "output/"
 
     parser = Parser()
     main(parser)

@@ -17,16 +17,6 @@ Nibabel
 Numpy  
 [Volumentations](https://github.com/ashawkey/volumentations)  
 
-### Train and Test
-Run the following code to train the network  
-```
-python Train.py
-```
-Run the following code to test the network
-```
-python Infer.py
-```
-You can rewrite the DataOprate.py to train your own data.
 
 ## Result
 Visual comparison of the segmentation results obtained from different methods.   
@@ -35,11 +25,11 @@ Visualization of the cortical surface error maps.
 ![3dresult](img/3d_result.png)  
 
 ## Relevant Resource
-The relevant code can be also found at https://github.com/bchimagine  
-If you have any question, please be free to contact Prof. Ali Gholipour (ali.gholipour@childrens.harvard.edu) or Mr. Haoran Dou (dhr9936@gmail.com).
+This repo is based on the one [here](wulalago/FetalCPSeg). 
+
 
 ## Citation  
-If this work is helpful for you, please cite our paper as follows:   
+If this work is helpful for you, please cite the original paper as follows:   
 ```
 @article{dou2020deep,
   title={A Deep Attentive Convolutional Neural Network for Automatic Cortical Plate Segmentation in Fetal MRI},
