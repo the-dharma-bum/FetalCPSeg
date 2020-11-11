@@ -80,8 +80,8 @@ class NiftiDataset(Dataset):
             * Spleen.......: 4
 
         Note that this function doesn't return anything but instead acts on the mask directly.
-        That is because numpy's ndarrays are mutable objects and create a copy would be time and space
-        consuming while being unnecessary.
+        That is because numpy's ndarrays are mutable objects and create a copy would be time and
+        space consuming while being unnecessary.
 
         Args:
             mask (np.ndarray): A 3D array acting of values in {0, 1, 2, 3, 4} acting as a
