@@ -1,0 +1,12 @@
+nilearn==0.6.2
+torch==1.6.0
+matplotlib==3.3.0
+pytorch_lightning==1.0.5
+opencv_python==4.4.0.42
+scikit_image==0.17.2
+einops==0.3.0
+scipy==1.5.1
+nibabel==3.1.1
+numpy==1.19.0
+Network==0.1
+skimage==0.0
