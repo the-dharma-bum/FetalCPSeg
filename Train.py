@@ -1,5 +1,6 @@
 import os
 import time
+from matplotlib.pyplot import cla
 
 import nibabel as nib
 import numpy as np
@@ -101,6 +102,7 @@ def main(args):
             args.data_path,
             target_resolution=args.target_resolution,
             target_shape=args.target_shape,
+            class_indexes=args.class_indexes,
             patch_size=args.patch_size,
             train_batch_size=args.train_batch_size,
             val_batch_size=args.val_batch_size,
@@ -150,8 +152,9 @@ if __name__ == '__main__':
         def __init__(self):
             self.gpu_id = 0
 
-            self.target_resolution = (1.5, 1.5, 8.),
-            self.target_shape = None,
+            self.target_resolution = (1.5, 1.5, 8.)
+            self.target_shape = None
+            self.class_indexes = [1]
 
             self.lr = 1e-3
             self.weight_decay = 1e-4
