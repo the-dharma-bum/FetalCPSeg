@@ -33,7 +33,7 @@ def dice_score(seg, gt, ratio=0.5):
     seg = seg.flatten()
     gt = gt.flatten()
     seg[seg > ratio] = np.float32(1)
-    seg[seg < ratio] = np.float32(0)
+    seg[seg < ratio] = np.float32(0)    
     dice = float(2 * (gt * seg).sum())/float(gt.sum() + seg.sum())
     return dice
 

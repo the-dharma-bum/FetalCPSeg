@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import random_split, DataLoader
-from typing import Tuple, Optional, Callable, NewType
+from typing import Tuple, List, Optional, Callable, NewType
 from .volumentations import *
 from data import NiftiDataset
 
@@ -19,8 +19,9 @@ class DataModule(LightningDataModule):
     """  
     
     def __init__(self, input_root: str, target_resolution: Tuple[int] = (1.5, 1.5, 8),
-                 target_shape: Tuple[int]= None, patch_size: Tuple[int] = (128, 128, 26),
-                 train_batch_size: int=64, val_batch_size: int=64, num_workers: int=4) -> None:
+                 target_shape: Tuple[int]= None, class_indexes: List[int] = [1, 2, 3, 4],
+                 patch_size: Tuple[int] = (128, 128, 26), train_batch_size: int=64,
+                 val_batch_size: int=64, num_workers: int=4) -> None:
         """ Instanciate a Datamodule able to return three Pytorch DataLoaders (train/val/test).
 
         Args:
@@ -30,6 +31,15 @@ class DataModule(LightningDataModule):
             target_shape (Tuple[int]): Shape of one image after resampling. Will reshape by
                                        resampling. If None, resampling will affect the resolution
                                        only and not the shape. Defaults to None.
+            classes (List[int]): A vanilla mask has 4 classes annotated as follows:
+                                 * Background...: 0
+                                 * Liver........: 1
+                                 * Right kidney.: 2
+                                 * Left  kidney.: 3
+                                 * Spleen.......: 4
+                                 This parameter gives class indexes to keep for the classification
+                                 task. E.g: [1, 2] for segment liver and right kidney only.
+                                 Default to [1, 2, 3, 4] (ie all classes).
             patch_size: Tuple[int]: Some transforms will sample 3D patches from a 3D array.
                                     This specifies those patches size.
             train_batch_size (int, optional): Training batch size. Defaults to 64.
@@ -41,6 +51,7 @@ class DataModule(LightningDataModule):
         self.input_root        = input_root
         self.target_resolution = target_resolution
         self.target_shape      = target_shape
+        self.class_indexes     = class_indexes
         self.train_batch_size  = train_batch_size
         self.val_batch_size    = val_batch_size
         self.num_workers       = num_workers
@@ -69,12 +80,13 @@ class DataModule(LightningDataModule):
         if train_length + val_length != total_length: # round error
             val_length += 1
         if stage == 'fit' or stage is None:
-            full_set = NiftiDataset(self.input_root, self.target_resolution,
-                                    self.target_shape, transform=self.train_transform)
+            full_set = NiftiDataset(self.input_root, self.target_resolution, self.target_shape,
+                                    self.class_indexes, transform=self.train_transform)
             self.train_set, self.val_set = random_split(full_set, [train_length, val_length])
         if stage == 'test' or stage is None:
             self.test_set = NiftiDataset(self.input_root, self.target_resolution,
-                                         self.target_shape, transform=self.test_transform)
+                                         self.target_shape, self.class_indexes, 
+                                         transform=self.test_transform)
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(self.train_set, num_workers=self.num_workers,
@@ -94,4 +106,5 @@ class DataModule(LightningDataModule):
             Datamodule object.
         """
         return cls(config.rootdir, config.target_resolution, config.target_shape,
-                   config.train_batch_size, config.val_batch_size, config.num_workers)
+                   config.class_indexes,  config.train_batch_size, 
+                   config.val_batch_size, config.num_workers)

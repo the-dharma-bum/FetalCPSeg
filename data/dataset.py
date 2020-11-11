@@ -6,7 +6,7 @@ from nilearn.image import resample_img
 import torch
 from torch.utils.data.dataset import Dataset
 from einops import rearrange
-from typing import Tuple, Optional, Callable, NewType
+from typing import Tuple, List, Optional, Callable, NewType
 
 
 # Type hint
@@ -18,7 +18,8 @@ class NiftiDataset(Dataset):
     """ A Pytorch Dataset to load nifti couples (image, mask). """
 
     def __init__(self, rootdir: str, target_resolution: Tuple[int] = (1.5, 1.5, 8),
-                 target_shape: Tuple[int]= None, transform: Transform=None) -> None:
+                 target_shape: Tuple[int]= None, class_indexes: List[int] = [1, 2, 3, 4],
+                 transform: Transform=None) -> None:
         """ Instanciate a dataset able to apply 3d resampling and transforms to 
             couple (image, mask).
 
@@ -28,7 +29,16 @@ class NiftiDataset(Dataset):
                                             one voxel sizes in mm3. 
             target_shape (Tuple[int]): Shape of one image after resampling. Will reshape by
                                        resampling. If None, resampling will affect the resolution
-                                       only and not the shape. Defaults to None. 
+                                       only and not the shape. Defaults to None.
+            classes (List[int]): A vanilla mask has 4 classes annotated as follows:
+                                 * Background...: 0
+                                 * Liver........: 1
+                                 * Right kidney.: 2
+                                 * Left  kidney.: 3
+                                 * Spleen.......: 4
+                                 This parameter gives class indexes to keep for the classification
+                                 task. E.g: [1, 2] for segment liver and right kidney only.
+                                 Default to [1, 2, 3, 4] (ie all classes).
             transform (Transform, optional): Transformations to apply on couple (image, mask).
                                              Based on volumentations. Defaults to None.
                                              See https://github.com/ashawkey/volumentations.
@@ -39,6 +49,7 @@ class NiftiDataset(Dataset):
         self.mask_list         = sorted(filter(lambda x: 'mask' in x, os.listdir(self.rootdir)))
         self.target_resolution = target_resolution
         self.target_shape      = np.array(target_shape)
+        self.class_indexes     = class_indexes
         self.transform         = transform
 
     def resample(self, image: nib.nifti1.Nifti1Image) -> nib.nifti1.Nifti1Image:
@@ -60,13 +71,34 @@ class NiftiDataset(Dataset):
         return resample_img(image, target_affine=target_affine,
                             target_shape=self.target_shape, interpolation='nearest')
 
+    def select_classes(self, mask: np.ndarray) -> None:
+        """ A vanilla mask has 4 classes annotated as follows:
+            * Background...: 0
+            * Liver........: 1
+            * Right kidney.: 2
+            * Left  kidney.: 3
+            * Spleen.......: 4
+
+        Note that this function doesn't return anything but instead acts on the mask directly.
+        That is because numpy's ndarrays are mutable objects and create a copy would be time and space
+        consuming while being unnecessary.
+
+        Args:
+            mask (np.ndarray): A 3D array acting of values in {0, 1, 2, 3, 4} acting as a
+                               segmentation mask. 
+        """
+        all_classes = [1,2,3,4]
+        classes_to_delete = list(filter(lambda x: x not in self.class_indexes, all_classes))
+        for class_index in classes_to_delete:
+            mask[mask == class_index] = 0
+
     def apply_transform(self, image: np.ndarray, mask: np.ndarray) -> Tuple[np.ndarray]:
         """ Apply a composition of 3D transformations to both image and mask arrays.
             See https://github.com/ashawkey/volumentations and datamodule.py.
 
         Args:
             image (np.ndarray): A 3D numpy array of shape (W, H, D).
-            mask (np.ndarray):  A 3D numpy array of shape (W, H, D).
+            mask  (np.ndarray): A 3D numpy array of shape (W, H, D).
 
         Returns:
             Tuple[np.ndarray]: Two 3D numpy arrays of same shape, which could be different from 
@@ -89,6 +121,7 @@ class NiftiDataset(Dataset):
         mask  = nib.load(os.path.join(self.rootdir,  self.mask_list[index]))
         image, mask = self.resample(image), self.resample(mask)
         image_array, mask_array = image.get_fdata(), mask.get_fdata()
+        self.select_classes(mask_array)
         if self.transform is not None:
             image_array, mask_array = self.apply_transform(image_array, mask_array)
         image_tensor = torch.from_numpy(image_array)
