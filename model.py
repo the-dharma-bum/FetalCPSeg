@@ -101,8 +101,12 @@ class LightningModel(pl.LightningModule):
         inputs, targets = batch        
         outputs = self.net(inputs)
         loss = self.compute_loss(outputs, targets)
+        outputs_array = outputs[0].cpu().detach().numpy()
+        targets_array = targets.cpu().detach().numpy()
+        dice = dice_score(outputs_array, targets_array)
+        self.log('Dice Score/Train', dice)
         self.log('Loss/Train', loss)
-        return {'loss': loss}
+        return {'loss': loss, 'dice': dice}
     
     def validation_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> Dict:
         """ Perform the classic training step (infere + compute loss) on a batch.
@@ -122,8 +126,8 @@ class LightningModel(pl.LightningModule):
         targets_array = targets.cpu().detach().numpy()
         dice = dice_score(outputs_array, targets_array)
         self.log('Loss/Validation', loss)
-        self.log('Validation Dice Score', dice, prog_bar=True)
-        return {'val_loss': loss}
+        self.log('Dice Score/Validation', dice, prog_bar=True)
+        return {'val_loss': loss, 'val_dice': dice}
 
     def test_step(self, batch: torch.Tensor, batch_idx) ->  torch.Tensor:
         """ Not implemented. """

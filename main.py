@@ -5,7 +5,9 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, EarlyStopping
 from model import LightningModel
 from data import DataModule
+from verbose import VerboseCallback
 import config as cfg
+
 
 
 
@@ -45,9 +47,10 @@ def init_trainer():
     parser = Trainer.add_argparse_args(parser)
     args   = parser.parse_args()
     lr_logger      = LearningRateMonitor()
+    verbose        = VerboseCallback()
     early_stopping = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.001, 
                                    patience=100, verbose=True)
-    return Trainer.from_argparse_args(args, callbacks = [lr_logger, early_stopping])
+    return Trainer.from_argparse_args(args, callbacks = [lr_logger, verbose, early_stopping])
 
 
 
