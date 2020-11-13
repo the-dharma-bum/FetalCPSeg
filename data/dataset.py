@@ -48,7 +48,7 @@ class NiftiDataset(Dataset):
         self.image_list        = sorted(filter(lambda x: 'src'  in x, os.listdir(self.rootdir)))
         self.mask_list         = sorted(filter(lambda x: 'mask' in x, os.listdir(self.rootdir)))
         self.target_resolution = target_resolution
-        self.target_shape      = np.array(target_shape)
+        self.target_shape      = target_shape
         self.class_indexes     = class_indexes
         self.transform         = transform
 
@@ -64,8 +64,8 @@ class NiftiDataset(Dataset):
             [nib.nifti1.Nifti1Image]: A resampled 3D Nifti1 image of resolution 
                                       self.target_resolution and of shape self.target_shape.
         """
-        if not self.target_shape:
-            self.target_shape = image.shape
+        if self.target_shape is not None:
+            self.target_shape = np.array(self.target_shape)
         target_affine = rescale_affine(image.affine, image.shape, 
                                        self.target_resolution, new_shape=self.target_shape)
         return resample_img(image, target_affine=target_affine,
@@ -121,6 +121,7 @@ class NiftiDataset(Dataset):
         mask  = nib.load(os.path.join(self.rootdir,  self.mask_list[index]))
         image, mask = self.resample(image), self.resample(mask)
         image_array, mask_array = image.get_fdata(), mask.get_fdata()
+        image_array, mask_array = image_array.astype(np.float32), mask_array.astype(np.float32)
         self.select_classes(mask_array)
         if self.transform is not None:
             image_array, mask_array = self.apply_transform(image_array, mask_array)

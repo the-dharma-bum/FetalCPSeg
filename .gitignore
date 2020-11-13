@@ -31,3 +31,4 @@ lightning_logs/
 # Test & Backups
 *test.py*
 *backup*
+**/*backup*/

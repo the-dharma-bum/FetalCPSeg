@@ -1,5 +1,4 @@
 import os
-from nibabel import test
 import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
@@ -55,7 +54,8 @@ class DataModule(LightningDataModule):
         self.train_batch_size  = train_batch_size
         self.val_batch_size    = val_batch_size
         self.num_workers       = num_workers
-        self.train_transform, self.test_transform = self.init_transforms(patch_size)
+        self.train_transform, self.test_transform = None, None
+        #self.train_transform, self.test_transform = self.init_transforms(patch_size)
 
     def init_transforms(self, patch_size):
         train_transform = Compose([
@@ -105,6 +105,6 @@ class DataModule(LightningDataModule):
         """ From a DataModule config object (see config.py) instanciate a
             Datamodule object.
         """
-        return cls(config.rootdir, config.target_resolution, config.target_shape,
+        return cls(config.input_root, config.target_resolution, config.target_shape,
                    config.class_indexes,  config.train_batch_size, 
                    config.val_batch_size, config.num_workers)
