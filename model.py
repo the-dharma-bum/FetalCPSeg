@@ -74,13 +74,16 @@ class LightningModel(pl.LightningModule):
         weight_tensor = weight_tensor.to(self.device)
         return weight_tensor
 
-    def compute_loss(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def compute_loss(self, outputs: Tuple[torch.Tensor], targets: torch.Tensor) -> torch.Tensor:
         """ Compute the loss over a whole batch. 
             If deep supervision, the loss will be a weighted sum of losses computed at several
             depths in the network.
 
         Args:
-            outputs (torch.Tensor): Masks predicted by the network.
+            outputs (Tuple[torch.Tensor]): Outputs of the network taken at several depths.
+                                           Tuple of length 9. Each of those 9 elements is of shape:
+                                           (batch_size, channels, depth, width, height).
+                                           See the forward method in network/MixAttNet.py.
                                     Shape: (batch_size, channels, depth, width, height)
             targets (torch.Tensor): The ground truth segmentation masks.
                                     Shape: (batch_size, channels, depth, width, height)
@@ -92,11 +95,11 @@ class LightningModel(pl.LightningModule):
         loss_function = torch.nn.BCEWithLogitsLoss(pos_weight=self.get_pos_weight(targets))
         loss   = 0.
         coeffs = [1.] + 2*[0.8, 0.7, 0.6, 0.5]
-        if self.net.training:
+        if self.net.training and self.hparams.deep_supervision:
             for coeff, output in zip(coeffs, outputs):
                 loss += loss_function(coeff, output)
         else:
-            loss = loss_function(outputs, targets)
+            loss = loss_function(outputs[0], targets)
         return loss
 
     @staticmethod
@@ -125,7 +128,6 @@ class LightningModel(pl.LightningModule):
         loss = self.compute_loss(outputs, targets)
         outputs_array = outputs[0].cpu().detach().numpy()
         targets_array = targets.cpu().detach().numpy()
-        self.print(outputs[0], targets)
         dice = self.dice_score(outputs_array, targets_array)
         self.log('Dice Score/Train', dice)
         self.log('Loss/Train', loss)
@@ -146,7 +148,7 @@ class LightningModel(pl.LightningModule):
         inputs, targets = batch
         outputs = self.net(inputs)
         loss = self.compute_loss(outputs, targets)
-        outputs_array = outputs.cpu().detach().numpy()
+        outputs_array = outputs[0].cpu().detach().numpy()
         targets_array = targets.cpu().detach().numpy()
         dice = self.dice_score(outputs_array, targets_array)
         self.log('Loss/Validation', loss)
@@ -159,6 +161,7 @@ class LightningModel(pl.LightningModule):
     @classmethod
     def from_config(cls, config):
         return cls(
+            deep_supervision  = config.train.deep_supervision,
             lr                = config.train.lr,
             weight_decay      = config.train.weight_decay,
             milestones        = config.train.milestones,

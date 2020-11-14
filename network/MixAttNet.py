@@ -220,10 +220,7 @@ class MixAttNet(nn.Module):
         mix_out4 = self.mix_out4(mix4)
         out = self.out(torch.cat((mix1, mix2, mix3, mix4), dim=1))
 
-        if self.training:
-            return out, mix_out1, mix_out2, mix_out3, mix_out4, down_out1, down_out2, down_out3, down_out4
-        else:
-            return torch.sigmoid(out)
+        return out, mix_out1, mix_out2, mix_out3, mix_out4, down_out1, down_out2, down_out3, down_out4
 
 
 if __name__ == '__main__':

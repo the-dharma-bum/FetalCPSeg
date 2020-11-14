@@ -71,6 +71,8 @@ class Train:
     
     Args:
 
+        deep_supervision (bool): If True, the loss will be a weighted sum of losses computed at
+                                 several depths in the network.
         lr (float): Initial learning rate.
         weight_decay (float): L2 penalty of model's weights. 
         milestones (Tuple[int]): Tuple of epoch indices. Must be increasing.
@@ -80,6 +82,7 @@ class Train:
         verbose (bool): Should scheduler print when it acts on the learning rate.   
     """
 
+    deep_supervision: bool = True
     lr:              float = 1e-3
     weight_decay:    float = 5e-4
     milestones: Tuple[int] = (500, 750)
@@ -97,6 +100,8 @@ class Train:
 
 @dataclass
 class Config:
+
+    """ A simple  wrapper around the subconfigurations classes. """
 
     datamodule: DataModule
     train: Train
