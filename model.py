@@ -66,21 +66,12 @@ class LightningModel(pl.LightningModule):
         return weight_tensor
 
     def compute_loss(self, outputs, targets):   
-        weight = self.get_pos_weight(targets)
-        loss_function = torch.nn.BCEWithLogitsLoss(pos_weight=weight)
+        loss_function = torch.nn.BCEWithLogitsLoss(pos_weight=self.get_pos_weight(targets))
+        loss   = 0.
+        coeffs = [1.] + 2*[0.8, 0.7, 0.6, 0.5]
         if self.net.training:
-            loss1 = loss_function(outputs[0], targets)
-            loss2 = loss_function(outputs[1], targets)
-            loss3 = loss_function(outputs[2], targets)
-            loss4 = loss_function(outputs[3], targets)
-            loss5 = loss_function(outputs[4], targets)
-            loss6 = loss_function(outputs[5], targets)
-            loss7 = loss_function(outputs[6], targets)
-            loss8 = loss_function(outputs[7], targets)
-            loss9 = loss_function(outputs[8], targets)
-            loss = loss1 + \
-            0.8*loss2 + 0.7*loss3 + 0.6*loss4 + 0.5*loss5 + \
-            0.8*loss6 + 0.7*loss7 + 0.6*loss8 + 0.5*loss9
+            for coeff, output in zip(coeffs, outputs):
+                loss += loss_function(coeff, output)
         else:
             loss = loss_function(outputs, targets)
         return loss
