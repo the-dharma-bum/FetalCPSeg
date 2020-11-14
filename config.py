@@ -47,8 +47,8 @@ class DataModule:
     """
 
     input_root:                    str = "/homes/l17vedre/Bureau/Sanssauvegarde/patnum_data/train/"
-    target_resolution:      Tuple[int] = (1.5*4, 1.5*4, 8)
-    target_shape: Optional[Tuple[int]] = (64, 64, 26)
+    target_resolution:      Tuple[int] = (1.5*8, 1.5*8, 8)
+    target_shape: Optional[Tuple[int]] = (32, 32, 26)
     class_indexes:          Tuple[int] = (1, )
     patch_size:   Optional[Tuple[int]] = None
     train_batch_size:              int = 2
@@ -71,8 +71,10 @@ class Train:
     
     Args:
 
+        in_channels (int): Number of channels for input images and masks.
         deep_supervision (bool): If True, the loss will be a weighted sum of losses computed at
                                  several depths in the network.
+        attention (bool): Controls the use of Attention Module in the network.
         lr (float): Initial learning rate.
         weight_decay (float): L2 penalty of model's weights. 
         milestones (Tuple[int]): Tuple of epoch indices. Must be increasing.
@@ -82,7 +84,9 @@ class Train:
         verbose (bool): Should scheduler print when it acts on the learning rate.   
     """
 
+    in_channels:       int = 1
     deep_supervision: bool = True
+    attention:        bool = True
     lr:              float = 1e-3
     weight_decay:    float = 5e-4
     milestones: Tuple[int] = (500, 750)

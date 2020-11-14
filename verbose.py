@@ -97,30 +97,30 @@ class Table:
         Updated every batch.
     """
     def __init__(self, width=42, best_only=False):
-        self.width     = width
-        self.strings   = FancyDisplay()
+        self.width   = width
+        self.strings = FancyDisplay()
         if not best_only:
             self.top_title = Title(4,  width, 'CURRENT EPOCH')
             self.current_loss = Descriptor(width, 6, self.strings.current_loss)
-            self.current_dice  = Descriptor(width, 7, self.strings.current_dice)
+            self.current_dice = Descriptor(width, 7, self.strings.current_dice)
             self.current_lr   = Descriptor(width, 8, self.strings.current_lr)
             self.mid_title = Title(10, width, 'LAST EPOCH (average)')
             self.last_epoch_avg_train_loss = Descriptor(width, 12, self.strings.last_avg_train_loss)
             self.last_epoch_avg_val_loss   = Descriptor(width, 13, self.strings.last_avg_val_loss)
-            self.last_epoch_avg_train_dice  = Descriptor(width, 14, self.strings.last_avg_train_dice)
-            self.last_epoch_avg_val_dice    = Descriptor(width, 15, self.strings.last_avg_val_dice)
+            self.last_epoch_avg_train_dice = Descriptor(width, 14, self.strings.last_avg_train_dice)
+            self.last_epoch_avg_val_dice   = Descriptor(width, 15, self.strings.last_avg_val_dice)
             self.bot_title = Title(17, width, 'BEST SO FAR (one epoch average)')
             self.best_train_loss = Descriptor(width, 19, self.strings.best_avg_train_loss)
             self.best_val_loss   = Descriptor(width, 20, self.strings.best_avg_val_loss)
-            self.best_train_dice  = Descriptor(width, 21, self.strings.best_avg_train_dice)
-            self.best_val_dice    = Descriptor(width, 22, self.strings.best_avg_val_dice)
+            self.best_train_dice = Descriptor(width, 21, self.strings.best_avg_train_dice)
+            self.best_val_dice   = Descriptor(width, 22, self.strings.best_avg_val_dice)
             self.last_line = Title(24, width, top_border_only=True)
         else:
             self.bot_title = Title(2, width, 'BEST SO FAR (one epoch average)')
             self.best_train_loss = Descriptor(width, 4, self.strings.best_avg_train_loss)
             self.best_val_loss   = Descriptor(width, 5, self.strings.best_avg_val_loss)
-            self.best_train_dice  = Descriptor(width, 6, self.strings.best_avg_train_dice)
-            self.best_val_dice    = Descriptor(width, 7, self.strings.best_avg_val_dice)
+            self.best_train_dice = Descriptor(width, 6, self.strings.best_avg_train_dice)
+            self.best_val_dice   = Descriptor(width, 7, self.strings.best_avg_val_dice)
             self.last_line = Title(9, width, top_border_only=True)
 
     def update_current(self, loss, dice, lr):
@@ -173,12 +173,12 @@ class State():
     def __init__(self, table_width=42):
         self.last_avg_train_loss = 9.999
         self.last_avg_val_loss   = 9.9999
-        self.last_avg_train_dice  = 0.
-        self.last_avg_val_dice    = 0.
+        self.last_avg_train_dice = 0.
+        self.last_avg_val_dice   = 0.
         self.best_avg_train_loss = 9.9999
         self.best_avg_val_loss   = 9.9999
-        self.best_avg_train_dice  = 0.
-        self.best_avg_val_dice    = 0.
+        self.best_avg_train_dice = 0.
+        self.best_avg_val_dice   = 0.
         self.epoch_train_losses  = []
         self.epoch_train_dices   = []
         self.epoch_val_losses    = []
@@ -202,16 +202,16 @@ class State():
     def update_best_average(self):
         self.best_avg_train_loss = min(self.best_avg_train_loss, self.last_avg_train_loss)
         self.best_avg_val_loss   = min(self.best_avg_val_loss,   self.last_avg_val_loss)
-        self.best_avg_train_dice  = max(self.best_avg_train_dice,  self.last_avg_train_dice)
-        self.best_avg_val_dice    = max(self.best_avg_val_dice,    self.last_avg_val_dice)
+        self.best_avg_train_dice = max(self.best_avg_train_dice,  self.last_avg_train_dice)
+        self.best_avg_val_dice   = max(self.best_avg_val_dice,    self.last_avg_val_dice)
         self.table.update_best_average(self.best_avg_train_loss, self.best_avg_val_loss,
                                        self.best_avg_train_dice, self.best_avg_val_dice)
 
     def update_last_average(self):
         self.last_avg_train_loss = np.asarray(self.epoch_train_losses).mean()
-        self.last_avg_train_dice  = np.asarray(self.epoch_train_dices).mean()
+        self.last_avg_train_dice = np.asarray(self.epoch_train_dices).mean()
         self.last_avg_val_loss   = np.asarray(self.epoch_val_losses).mean()
-        self.last_avg_val_dice    = np.asarray(self.epoch_val_dices).mean()
+        self.last_avg_val_dice   = np.asarray(self.epoch_val_dices).mean()
         self.table.update_last_average(self.last_avg_train_loss, self.last_avg_val_loss,
                                        self.last_avg_train_dice,  self.last_avg_val_dice)
 
@@ -233,26 +233,29 @@ class VerboseCallback(Callback):
     def clear_terminal():
         os.system('cls' if os.name == 'nt' else 'clear')
 
-    def on_train_batch_end(self,  trainer, *args):
-        output = trainer.callback_metrics
+    def on_train_batch_end(self,  trainer, pl_module, *args):
+        if pl_module.current_epoch==0:
+            return
+        output = trainer.callback_metrics   
         self.state.update_current_train(output)
 
-    def on_validation_batch_end(self, trainer, *args):
+    def on_validation_batch_end(self, trainer, pl_module, *args):
+        if pl_module.current_epoch==0: 
+            return
         output = trainer.callback_metrics
         if output:
             self.state.update_current_val(output)
 
-    def on_epoch_end(self, *args):
+    def on_epoch_end(self, pl_module, *args):
+        if pl_module.current_epoch==0: 
+            return
         self.state.update_last_average()
         self.state.update_best_average()
 
     def on_fit_end(self, *args):
         print(2*'\n')
 
-    #def on_train_start(self, trainer, pl_module):
-    #    self.clear_terminal()
-
-    def on_keyboard_interrupt(self, trainer, pl_module):
+    def on_keyboard_interrupt(self, *args):
         self.state.table.close()
         self.clear_terminal()
         print("Keyboard interrupt. Pytorch Lightning attempted a graceful shutdown.")
