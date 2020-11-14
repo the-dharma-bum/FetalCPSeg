@@ -37,9 +37,9 @@ class LightningModel(pl.LightningModule):
     def configure_optimizers(self) -> Dict:
         """ Instanciate an optimizer and a learning rate scheduler to be used during training.
         Returns:
-            (Dict): Dict containing the optimizer(s) and learning rate scheduler(s) to be used by
-                    a Trainer object using this model. 
-                    The 'monitor' key is used by the ReduceLROnPlateau scheduler.                        
+            Dict: Dict containing the optimizer(s) and learning rate scheduler(s) to be used by
+                  a Trainer object using this model. 
+                  The 'monitor' key may be used by some schedulers (e.g: ReduceLROnPlateau).                        
         """
         optimizer = Adam(self.net.parameters(),
                          lr           = self.hparams.lr,
@@ -49,8 +49,17 @@ class LightningModel(pl.LightningModule):
                                 gamma      = self.hparams.gamma)
         return {'optimizer': optimizer, 'lr_scheduler': scheduler, 'monitor': 'val_loss'}
 
-    def get_pos_weight(self, targets):
-        # here we calculate the positive ratio in the input batch data
+    def get_pos_weight(self, targets: torch.Tensor) -> torch.Tensor:
+        """ Calculate the positive label ratio in the input batch data
+        Will be used to weight the loss accordingly (adress the class imbalance issue).
+
+        Args:
+            targets (torch.Tensor): The ground truth segmentation masks.
+                                    Shape: (batch_size, channels, depth, width, height)
+
+        Returns:
+            torch.Tensor: (Num positive voxels)/(Num all voxels). Shape (1).
+        """
         targets = targets.cpu()
         if np.where(targets == 1)[0].shape[0] == 0:
             weight = 1
@@ -60,12 +69,26 @@ class LightningModel(pl.LightningModule):
             else:
                 image_size = self.hparams.target_shape
             num_voxels = self.hparams.batch_size * image_size[0] * image_size[1] * image_size[2]
-            weight = num_voxels/np.where(targets == 1)[0].shape[0]
+            weight = num_voxels / np.where(targets == 1)[0].shape[0]
         weight_tensor = torch.FloatTensor([weight])
         weight_tensor = weight_tensor.to(self.device)
         return weight_tensor
 
-    def compute_loss(self, outputs, targets):   
+    def compute_loss(self, outputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        """ Compute the loss over a whole batch. 
+            If deep supervision, the loss will be a weighted sum of losses computed at several
+            depths in the network.
+
+        Args:
+            outputs (torch.Tensor): Masks predicted by the network.
+                                    Shape: (batch_size, channels, depth, width, height)
+            targets (torch.Tensor): The ground truth segmentation masks.
+                                    Shape: (batch_size, channels, depth, width, height)
+        
+        Returns:
+            torch.Tensor: Batch loss. Shape: (1).
+            
+        """ 
         loss_function = torch.nn.BCEWithLogitsLoss(pos_weight=self.get_pos_weight(targets))
         loss   = 0.
         coeffs = [1.] + 2*[0.8, 0.7, 0.6, 0.5]
@@ -89,8 +112,9 @@ class LightningModel(pl.LightningModule):
         Note that the backward pass is handled under the hood by Pytorch Lightning.
         Args:
             batch (torch.Tensor): Tuple of two tensor. 
-                                  One given to the network to be segmented, of shape (N,C,D,W,H).
-                                  The other being ...
+                                  One given to the network to be segmented. The other being the
+                                  ground truth segmentation mask.
+                                  Shapes: (batch_size, channels, depth, width, height)
             batch_idx ([type]): Dataset index of the batch. In range (dataset length)/(batch size).
         Returns:
             Dict: Scalars computed in this function. Note that this dict is accesible from 'hooks'
@@ -111,8 +135,9 @@ class LightningModel(pl.LightningModule):
         """ Perform the classic training step (infere + compute loss) on a batch.
         Args:
             batch (torch.Tensor): Tuple of two tensor. 
-                                  One given to the network to be classified, of shape (N,C,D,W,H).
-                                  The other being ...
+                                  One given to the network to be segmented. The other being the
+                                  ground truth segmentation mask.
+                                  Shapes: (batch_size, channels, depth, width, height)
             batch_idx (int): Dataset index of the batch. In range (dataset length)/(batch size).
         Returns:
             Dict: Scalars computed in this function. Note that this dict is accesible from 'hooks'

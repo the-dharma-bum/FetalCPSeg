@@ -57,15 +57,22 @@ class DataModule(LightningDataModule):
         self.train_transform, self.test_transform = None, None
         #self.train_transform, self.test_transform = self.init_transforms(patch_size)
 
-    def init_transforms(self, patch_size):
-        train_transform = Compose([
-                Normalize(range_norm=True, always_apply=True),
-                RandomCrop(patch_size, always_apply=True)
-            ], p=0.8)
-        test_transform = Compose([
-                Normalize(range_norm=True, always_apply=True),
-                RandomCrop(patch_size, always_apply=True)
-            ], p=0.8) 
+    @staticmethod
+    def init_transforms(patch_size: Tuple[int]) -> Tuple[Transform]:
+        """ Defines the transformations to be applied on couples (image, mask).
+
+        Args:
+            patch_size (Tuple[int]): If patch_size is not None, random patches will be cropped out
+                                     of both image and mask.
+
+        Returns:
+            Tuple[Transform]: Two Callables to be used right after loading nifti files.
+        """
+        transforms = [Normalize(range_norm=True, always_apply=True)]
+        if patch_size is not None:
+            transforms.append(RandomCrop(patch_size, always_apply=True))
+        train_transform = Compose(transforms, p=0.8)
+        test_transform  = Compose(transforms, p=0.8) 
         return train_transform, test_transform
 
     def setup(self, stage: str=None) -> None:
@@ -102,9 +109,7 @@ class DataModule(LightningDataModule):
 
     @classmethod
     def from_config(cls, config):
-        """ From a DataModule config object (see config.py) instanciate a
-            Datamodule object.
-        """
+        """ From a DataModule config object (see config.py) instanciate a Datamodule object. """
         return cls(config.input_root, config.target_resolution, config.target_shape,
                    config.class_indexes,  config.train_batch_size, 
                    config.val_batch_size, config.num_workers)
