@@ -49,7 +49,7 @@ class DataModule:
     input_root:                    str = "/homes/l17vedre/Bureau/Sanssauvegarde/patnum_data/train/"
     target_resolution:      Tuple[int] = (1.5*4, 1.5*4, 8)
     target_shape: Optional[Tuple[int]] = (64, 64, 26)
-    class_indexes:          Tuple[int] = (1)
+    class_indexes:          Tuple[int] = (1, )
     patch_size:   Optional[Tuple[int]] = None
     train_batch_size:              int = 2
     val_batch_size:                int = 2
