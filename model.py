@@ -97,7 +97,7 @@ class LightningModel(pl.LightningModule):
         coeffs = [1.] + 2*[0.8, 0.7, 0.6, 0.5]
         if self.net.training and self.hparams.deep_supervision:
             for coeff, output in zip(coeffs, outputs):
-                loss += loss_function(coeff, output)
+                loss += coeff * loss_function(output, targets)
         else:
             loss = loss_function(outputs[0], targets)
         return loss
