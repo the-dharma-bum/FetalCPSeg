@@ -8,7 +8,7 @@ to run the training pipeline.
 """
 
 from dataclasses import dataclass
-from typing import Tuple, List, Optional
+from typing import Tuple, Optional
 
 
 # +---------------------------------------------------------------------------------------------+ #
@@ -30,7 +30,7 @@ class DataModule:
         target_shape (Tuple[int], optional): Shape of one image after resampling. Will reshape by
                                              resampling. If None, resampling will affect the
                                              resolution only and not the shape. Defaults to None.
-        class_indexes (List[int]): A vanilla mask has 4 classes annotated as follows:
+        class_indexes (Tuple[int]): A vanilla mask has 4 classes annotated as follows:
                                     * Background...: 0
                                     * Liver........: 1
                                     * Right kidney.: 2
@@ -38,7 +38,7 @@ class DataModule:
                                     * Spleen.......: 4
                                    This parameter gives class indexes to keep for the 
                                    classification task.
-                                   E.g: [1, 2] to segment liver and right kidney only.
+                                   E.g: (1, 2) to segment liver and right kidney only.
         patch_size (Tuple[int], optional) : If not None, random patches will be cropped out from 
                                             image.
         train_batch_size (int): Batch size of the training dataloader.
@@ -46,16 +46,16 @@ class DataModule:
         num_workers (int): Num of threads for the 3 dataloaders (train, val, test).
     """
 
-    input_root:                    str
-    target_resolution:      Tuple[int]
-    target_shape: Optional[Tuple[int]]
-    class_indexes:           List[int]
-    patch_size:   Optional[Tuple[int]]
-    train_batch_size:              int
-    val_batch_size:                int
-    num_workers:                   int
+    input_root:                    str = "/homes/l17vedre/Bureau/Sanssauvegarde/patnum_data/train/"
+    target_resolution:      Tuple[int] = (1.5*4, 1.5*4, 8)
+    target_shape: Optional[Tuple[int]] = (64, 64, 26)
+    class_indexes:          Tuple[int] = (1)
+    patch_size:   Optional[Tuple[int]] = None
+    train_batch_size:              int = 2
+    val_batch_size:                int = 2
+    num_workers:                   int = 4
 
-    
+
 
 
 # +---------------------------------------------------------------------------------------------+ #
@@ -73,17 +73,18 @@ class Train:
 
         lr (float): Initial learning rate.
         weight_decay (float): L2 penalty of model's weights. 
-        milestones (float): List of epoch indices. Must be increasing.
+        milestones (Tuple[int]): Tuple of epoch indices. Must be increasing.
+                                 Note that we used tuple insted of list to avoid mutability issues.
         gamma (float): Multiplicative factor of learning rate decay.
                        Learning rate will be multiplied by gamme every epoch in milestones.
         verbose (bool): Should scheduler print when it acts on the learning rate.   
     """
 
-    lr:           float
-    weight_decay: float
-    milestones:   List[int]
-    gamma:        float
-    verbose:      bool
+    lr:              float = 1e-3
+    weight_decay:    float = 5e-4
+    milestones: Tuple[int] = (500, 750)
+    gamma:          float  = 0.1
+    verbose:         bool  = True
 
 
 

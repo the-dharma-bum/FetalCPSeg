@@ -6,7 +6,7 @@ from nilearn.image import resample_img
 import torch
 from torch.utils.data.dataset import Dataset
 from einops import rearrange
-from typing import Tuple, List, Optional, Callable, NewType
+from typing import Tuple, Optional, Callable, NewType
 
 
 # Type hint
@@ -18,7 +18,7 @@ class NiftiDataset(Dataset):
     """ A Pytorch Dataset to load nifti couples (image, mask). """
 
     def __init__(self, rootdir: str, target_resolution: Tuple[int] = (1.5, 1.5, 8),
-                 target_shape: Tuple[int]= None, class_indexes: List[int] = [1, 2, 3, 4],
+                 target_shape: Tuple[int]= None, class_indexes: Tuple[int] = [1, 2, 3, 4],
                  transform: Transform=None) -> None:
         """ Instanciate a dataset able to apply 3d resampling and transforms to 
             couple (image, mask).
@@ -30,12 +30,12 @@ class NiftiDataset(Dataset):
             target_shape (Tuple[int]): Shape of one image after resampling. Will reshape by
                                        resampling. If None, resampling will affect the resolution
                                        only and not the shape. Defaults to None.
-            classes (List[int]): A vanilla mask has 4 classes annotated as follows:
-                                 * Background...: 0
-                                 * Liver........: 1
-                                 * Right kidney.: 2
-                                 * Left  kidney.: 3
-                                 * Spleen.......: 4
+            classes (Tuple[int]): A vanilla mask has 4 classes annotated as follows:
+                                    * Background...: 0
+                                    * Liver........: 1
+                                    * Right kidney.: 2
+                                    * Left  kidney.: 3
+                                    * Spleen.......: 4
                                  This parameter gives class indexes to keep for the classification
                                  task. E.g: [1, 2] for segment liver and right kidney only.
                                  Default to [1, 2, 3, 4] (ie all classes).

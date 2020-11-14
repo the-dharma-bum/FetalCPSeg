@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import random_split, DataLoader
-from typing import Tuple, List, Optional, Callable, NewType
+from typing import Tuple, Optional, Callable, NewType
 from .volumentations import *
 from data import NiftiDataset
 
@@ -18,7 +18,7 @@ class DataModule(LightningDataModule):
     """  
     
     def __init__(self, input_root: str, target_resolution: Tuple[int] = (1.5, 1.5, 8),
-                 target_shape: Tuple[int]= None, class_indexes: List[int] = [1, 2, 3, 4],
+                 target_shape: Tuple[int]= None, class_indexes: Tuple[int] = [1, 2, 3, 4],
                  patch_size: Tuple[int] = (128, 128, 26), train_batch_size: int=64,
                  val_batch_size: int=64, num_workers: int=4) -> None:
         """ Instanciate a Datamodule able to return three Pytorch DataLoaders (train/val/test).
@@ -30,12 +30,12 @@ class DataModule(LightningDataModule):
             target_shape (Tuple[int]): Shape of one image after resampling. Will reshape by
                                        resampling. If None, resampling will affect the resolution
                                        only and not the shape. Defaults to None.
-            classes (List[int]): A vanilla mask has 4 classes annotated as follows:
-                                 * Background...: 0
-                                 * Liver........: 1
-                                 * Right kidney.: 2
-                                 * Left  kidney.: 3
-                                 * Spleen.......: 4
+            classes (Tuple[int]): A vanilla mask has 4 classes annotated as follows:
+                                    * Background...: 0
+                                    * Liver........: 1
+                                    * Right kidney.: 2
+                                    * Left  kidney.: 3
+                                    * Spleen.......: 4
                                  This parameter gives class indexes to keep for the classification
                                  task. E.g: [1, 2] for segment liver and right kidney only.
                                  Default to [1, 2, 3, 4] (ie all classes).

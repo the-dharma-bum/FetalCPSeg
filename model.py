@@ -9,7 +9,6 @@ from torch.optim.lr_scheduler import MultiStepLR
 import pytorch_lightning as pl
 from typing import Tuple, Dict
 from network import MixAttNet
-from utils import dice_score
 
 
 class LightningModel(pl.LightningModule):
@@ -84,7 +83,15 @@ class LightningModel(pl.LightningModule):
             0.8*loss6 + 0.7*loss7 + 0.6*loss8 + 0.5*loss9
         else:
             loss = loss_function(outputs, targets)
-        return loss        
+        return loss
+
+    @staticmethod
+    def dice_score(outputs, targets, ratio=0.5):
+        outputs = outputs.flatten()
+        targets = targets.flatten()
+        outputs[outputs > ratio] = np.float32(1)
+        outputs[outputs < ratio] = np.float32(0)    
+        return float(2 * (targets * outputs).sum())/float(targets.sum() + outputs.sum())     
 
     def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> Dict:
         """ Perform the classic training step (infere + compute loss) on a batch.
@@ -103,7 +110,8 @@ class LightningModel(pl.LightningModule):
         loss = self.compute_loss(outputs, targets)
         outputs_array = outputs[0].cpu().detach().numpy()
         targets_array = targets.cpu().detach().numpy()
-        dice = dice_score(outputs_array, targets_array)
+        self.print(outputs[0], targets)
+        dice = self.dice_score(outputs_array, targets_array)
         self.log('Dice Score/Train', dice)
         self.log('Loss/Train', loss)
         return {'loss': loss, 'dice': dice}
@@ -124,7 +132,7 @@ class LightningModel(pl.LightningModule):
         loss = self.compute_loss(outputs, targets)
         outputs_array = outputs.cpu().detach().numpy()
         targets_array = targets.cpu().detach().numpy()
-        dice = dice_score(outputs_array, targets_array)
+        dice = self.dice_score(outputs_array, targets_array)
         self.log('Loss/Validation', loss)
         self.log('Dice Score/Validation', dice, prog_bar=True)
         return {'val_loss': loss, 'val_dice': dice}
