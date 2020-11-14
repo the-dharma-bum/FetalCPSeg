@@ -9,7 +9,6 @@ from torch.optim.lr_scheduler import MultiStepLR
 import pytorch_lightning as pl
 from typing import Tuple, Dict
 from network import MixAttNet
-#from backup.MixAttNet import MixAttNet as OriginalNet
 
 
 class LightningModel(pl.LightningModule):
@@ -31,7 +30,6 @@ class LightningModel(pl.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.net  = MixAttNet(self.hparams.in_channels, self.hparams.attention)
-        #self.net = OriginalNet()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
