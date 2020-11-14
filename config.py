@@ -36,7 +36,7 @@ class DataModule:
                                     * Right kidney.: 2
                                     * Left  kidney.: 3
                                     * Spleen.......: 4
-                                   This parameter gives class indexes to keep for the 
+                                   This parameter gives class indexes to keep for the
                                    classification task.
                                    E.g: (1, 2) to segment liver and right kidney only.
         patch_size (Tuple[int], optional) : If not None, random patches will be cropped out from 
