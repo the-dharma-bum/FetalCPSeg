@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 import pytorch_lightning as pl
 from typing import Tuple, Dict
 from network import MixAttNet
-from backup.MixAttNet import MixAttNet as OriginalNet
+#from backup.MixAttNet import MixAttNet as OriginalNet
 
 
 class LightningModel(pl.LightningModule):
