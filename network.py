@@ -128,67 +128,60 @@ class Attention(nn.Module):
 
 class MixAttNet(nn.Module):
     
-    def __init__(self, in_channels: int=1, attention: bool=True):
+    def __init__(self, in_channels: int=1, attention: bool=True, num_blocks: int=4):
         super().__init__()
         self.attention  = attention
+        self.num_blocks = num_blocks
+        dim = [16] + [2 ** (4+i) for i in range(num_blocks)] + [2 ** (4+num_blocks-1)]
+        strides = [1] + num_blocks * [2]
         self.init_block = ConvBlock3D(in_channels, 16)
-        num_filters = [16,16,32,64,128,128]
-        strides     = [1, 2, 2, 2, 2]
-        self.encoders = nn.ModuleList()
-        for i in range(len(num_filters)-1):
-            self.encoders.append(ResBlock(num_filters[i], num_filters[i+1], stride=strides[i]))
-        self.decoders = nn.ModuleList()
-        for i in range(len(num_filters)-2):
-            self.decoders.append(ResBlock(2*num_filters[i+1],  num_filters[i]))
-        self.down = nn.ModuleList()
-        for i in range(len(num_filters)-2):
-            self.down.append(ConvBlock3D(num_filters[i] , 16, kernel_size=1))
-        self.down_out = nn.ModuleList()
-        for i in range(len(num_filters)-2):
-            self.down_out.append(nn.Conv3d(16, 1, kernel_size=1))
+        self.encoders   = nn.ModuleList(
+            [ResBlock(dim[i], dim[i+1], stride=strides[i]) for i in range(num_blocks+1)])
+        self.decoders   = nn.ModuleList([ResBlock(2*dim[i+1],  dim[i]) for i in range(num_blocks)])
+        self.down       = nn.ModuleList(
+            [ConvBlock3D(dim[i] , 16, kernel_size=1) for i in range(num_blocks)])
+        self.down_out   = nn.ModuleList(num_blocks * [nn.Conv3d(16, 1, kernel_size=1)])
         if self.attention:
-            self.mix = nn.ModuleList()
-            for i in range(len(num_filters)-2):
-                self.mix.append(Attention(16, 16))
-        self.mix_out = nn.ModuleList()
-        for i in range(len(num_filters)-2):
-            self.mix_out.append(nn.Conv3d(16, 1, kernel_size=1))
-        self.last_block = ConvBlock3D(16*4, 64, bias=True)
+            self.mix    = nn.ModuleList(num_blocks * [Attention(16, 16)])
+        self.mix_out    = nn.ModuleList(num_blocks * [nn.Conv3d(16, 1, kernel_size=1)])
+        self.last_block = ConvBlock3D(num_blocks * 16, 64, bias=True)
         self.final_conv = nn.Conv3d(64, 1, kernel_size=1)
         self.non_linear = nn.PReLU()
 
     def forward(self, x):
         x = self.non_linear(self.init_block(x))
-        encoder1 = self.encoders[0](x)
-        encoder2 = self.encoders[1](encoder1)
-        encoder3 = self.encoders[2](encoder2)
-        encoder4 = self.encoders[3](encoder3)
-        encoder5 = self.encoders[4](encoder4)
-        decoder4 = self.decoders[3](torch.cat((encoder4, up_sample3d(encoder5, encoder4)), dim=1))
-        decoder3 = self.decoders[2](torch.cat((encoder3, up_sample3d(decoder4, encoder3)), dim=1))
-        decoder2 = self.decoders[1](torch.cat((encoder2, up_sample3d(decoder3, encoder2)), dim=1))
-        decoder1 = self.decoders[0](torch.cat((encoder1, up_sample3d(decoder2, encoder1)), dim=1))
-        down1 = up_sample3d(self.down[0](decoder1), x)
-        down2 = up_sample3d(self.down[1](decoder2), x)
-        down3 = up_sample3d(self.down[2](decoder3), x)
-        down4 = up_sample3d(self.down[3](decoder4), x)
-        down_out1 = self.down_out[0](down1)
-        down_out2 = self.down_out[1](down2)
-        down_out3 = self.down_out[2](down3)
-        down_out4 = self.down_out[3](down4)
-        print('test')
+        encoders_outputs = [self.encoders[0](x)]
+        for i in range(1, self.num_blocks+1):
+            encoders_outputs.append(self.encoders[i](encoders_outputs[i-1]))
+        decoders_outputs = [self.decoders[-1](
+            torch.cat((encoders_outputs[-2], 
+                       up_sample3d(encoders_outputs[-1], encoders_outputs[-2])), dim=1))]
+        for i in reversed(range(self.num_blocks-1)):
+            upsampling_output   = up_sample3d(decoders_outputs[-1], encoders_outputs[i])
+            concatenated_output = torch.cat((encoders_outputs[i], upsampling_output), dim=1)
+            decoders_outputs.append(self.decoders[i](concatenated_output))
+        decoders_outputs.reverse()
+        down_outputs  = []
+        for i in range(self.num_blocks):
+            down_outputs.append(up_sample3d(self.down[i](decoders_outputs[i]), x))
+        down_outputs_for_supervision = []
+        for i in range(self.num_blocks):
+            down_outputs_for_supervision.append(self.down_out[i](down_outputs[i]))
+        mix_outputs = []
         if self.attention:
-            mix1, att1 = self.mix[0](down1)
-            mix2, att2 = self.mix[1](down2)
-            mix3, att3 = self.mix[2](down3)
-            mix4, att4 = self.mix[3](down4)
+            attention_maps = []
+            for i in range(self.num_blocks):
+                mix_output, attention_map = self.mix[i](down_outputs[i])
+                mix_outputs.append(mix_output)
+                attention_maps.append(attention_map)
         else:
-            mix1, mix2, mix3, mix4 = down1, down2, down3, down4
-        mix_out1 = self.mix_out[0](mix1)
-        mix_out2 = self.mix_out[1](mix2)
-        mix_out3 = self.mix_out[2](mix3)
-        mix_out4 = self.mix_out[3](mix4)
-        out = self.non_linear(self.last_block(torch.cat((mix1, mix2, mix3, mix4), dim=1)))
+            for i in range(self.num_blocks):
+                mix_outputs.append(down_outputs[i])
+        mix_outputs_for_supervision = [self.mix_out[i](mix_outputs[i]) for i in range(self.num_blocks)]
+        out = self.non_linear(self.last_block(torch.cat(mix_outputs, dim=1)))
         out = self.final_conv(out)
-        return out, mix_out1, mix_out2, mix_out3, mix_out4, down_out1, down_out2, down_out3, down_out4
+        outputs_for_supersion = mix_outputs_for_supervision + down_outputs_for_supervision
+        return out, *outputs_for_supersion
+
+
 
