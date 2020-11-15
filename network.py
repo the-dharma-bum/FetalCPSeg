@@ -29,33 +29,37 @@ class ConvBlock3D(nn.Module):
 
 # +---------------------------------------------------------------------------------------------+ #
 # |                                                                                             | #
-# |                                   SQUEEZE AND EXCITE BLOCK                                  | #
+# |                                        SQUEEZE AND EXCITE                                   | #
 # |                                                                                             | #
 # +---------------------------------------------------------------------------------------------+ #
 
 
-class SELayer(nn.Module):
+class SEBlock3D(nn.Module):
     
-    def __init__(self, channel: int, reduction: int=16):
-        super().__init__()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
-        self.fc       = nn.Sequential(
-            nn.Linear(channel, channel // reduction, bias=False),
-            nn.ReLU(inplace=True),
-            nn.Linear(channel // reduction, channel, bias=False),
-            nn.Sigmoid()
-        )
+    """ 3D Squeeze-and-Excitation (SE) block as described in:
+        Hu et al., Squeeze-and-Excitation Networks, arXiv:1709.01507*
+    """
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        b, c, _, _ = x.size()
-        y = self.avg_pool(x).view(b, c)
-        y = self.fc(y).view(b, c, 1, 1)
-        return x * y.expand_as(x)
+    def __init__(self, in_channels, activation, reduction_ratio=1):
+        super().__init__()
+        self.avg_pool = nn.AdaptiveAvgPool3d(1)
+        self.reduction_ratio = reduction_ratio
+        self.fc1 = nn.Linear(in_channels, in_channels // reduction_ratio, bias=True)
+        self.fc2 = nn.Linear(in_channels // reduction_ratio, in_channels, bias=True)
+        self.relu = activation()
+
+    def forward(self, input_tensor):
+        batch_size, num_channels, D, H, W = input_tensor.size()
+        squeeze_tensor = self.avg_pool(input_tensor)
+        fc_out_1 = self.relu(self.fc1(squeeze_tensor.view(batch_size, num_channels)))
+        fc_out_2 = torch.sigmoid(self.fc2(fc_out_1))
+        return torch.mul(input_tensor, fc_out_2.view(batch_size, num_channels, 1, 1, 1))
+
 
 
 # +---------------------------------------------------------------------------------------------+ #
 # |                                                                                             | #
-# |                                   SQUEEZE AND EXCITE BLOCK                                  | #
+# |                                             RESIDUAL                                        | #
 # |                                                                                             | #
 # +---------------------------------------------------------------------------------------------+ #
 
@@ -63,20 +67,26 @@ class ResBlock(nn.Module):
     
     """ A 3D Residual Block. 
 
-        Normal path..: Conv3d -> BatchNorm3d -> NonLinear -> Conv3d -> BatchNorm3d
+        Normal path..: Conv3d -> BatchNorm3d -> NonLinear -> Conv3d (-> SE) -> BatchNorm3d
         Shortcut.....: DownSampling (ie = Conv3d with kernel size = 1) -> BatchNorm3d
         Output.......: NonLinear(Normal Path + Shortcut)  
     """
 
-    def __init__(self, in_chan: int, out_chan: int, activation: nn.Module, stride: int=1):
+    def __init__(self, in_chan: int, out_chan: int, activation: nn.Module,
+                 stride: int=1, se: bool=False):
         super().__init__()
         self.conv1       = ConvBlock3D(in_chan, out_chan, stride=stride)
         self.conv2       = ConvBlock3D(out_chan, out_chan, bias=True)
         self.non_linear  = activation()
         self.down_sample = ConvBlock3D(in_chan, out_chan, kernel_size=1, padding=0, stride=stride)
+        self.use_se      = se
+        if self.use_se:
+            self.se = SEBlock3D(out_chan, activation)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out      = self.conv2(self.non_linear(self.conv1(x)))
+        if self.use_se:
+            out = self.se(out)
         shortcut = self.down_sample(x)
         return self.non_linear(out + shortcut)
 
@@ -158,15 +168,15 @@ class Attention(nn.Module):
 class MixAttNet(nn.Module):
     
     def __init__(self, in_channels: int=1, attention: bool=True, supervision: bool=True,
-                 depth: int=4, activation: nn.Module = nn.PReLU) -> None:
+                 depth: int=4, activation: nn.Module = nn.PReLU, se: bool=True) -> None:
         super().__init__()
         dim = [16] + [2 ** (4+i) for i in range(depth)] + [2 ** (4+depth-1)]
         self.use_attention = attention
         self.supervision   = supervision
         self.depth         = depth
         self.init_block    = ConvBlock3D(in_channels, 16)
-        self.encoders      = self._init_encoders(depth, dim, activation)
-        self.decoders      = self._init_decoders(depth, dim, activation)
+        self.encoders      = self._init_encoders(depth, dim, activation, se)
+        self.decoders      = self._init_decoders(depth, dim, activation, se)
         self.down          = self._init_down_modules(depth, dim) 
         if self.use_attention:
             self.attention = nn.ModuleList(depth * [Attention(16, 16, activation)])
@@ -178,16 +188,16 @@ class MixAttNet(nn.Module):
         self.non_linear    = activation()
 
     @staticmethod
-    def _init_encoders(depth, dim, activation):
+    def _init_encoders(depth, dim, activation, se):
         strides = [1] + depth * [2]
         encoders = nn.ModuleList()
         for i in range(depth+1):
-            encoders.append(ResBlock(dim[i], dim[i+1], activation, stride=strides[i]))
+            encoders.append(ResBlock(dim[i], dim[i+1], activation, se=se, stride=strides[i]))
         return encoders
     
     @staticmethod
-    def _init_decoders(depth, dim, activation):
-        return nn.ModuleList([ResBlock(2*dim[i+1], dim[i], activation) for i in range(depth)])
+    def _init_decoders(depth, dim, activation, se):
+        return nn.ModuleList([ResBlock(2*dim[i+1], dim[i], activation, se=se) for i in range(depth)])
 
     @staticmethod
     def _init_down_modules(depth, dim):
