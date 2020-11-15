@@ -106,8 +106,8 @@ class MixAttNet(nn.Module):
             attention_maps.append(attention_map)
         return attention_outputs, attention_maps
 
-    def supervise(self, 
-                  down_outputs: List[torch.Tensor], mix_outputs: List[torch.Tensor]) -> List[torch.Tensor]:
+    def supervise(self, down_outputs: List[torch.Tensor],
+                  mix_outputs: List[torch.Tensor]) -> List[torch.Tensor]:
         supervised_down_outputs = [self.down_out[i](down_outputs[i]) for i in range(self.depth)]
         supervised_mix_outputs  = [self.mix_out[i](mix_outputs[i])   for i in range(self.depth)]
         supervised_outputs = supervised_mix_outputs + supervised_down_outputs
@@ -126,8 +126,7 @@ class MixAttNet(nn.Module):
             mix_outputs, attention_maps = self.through_attention_modules(down_outputs)
         out = self.through_last_block(mix_outputs)
         if self.supervision:
-            supervised_outputs = self.supervise(down_outputs, mix_outputs)
-            return (out, *supervised_outputs)
+            return (out, *self.supervise(down_outputs, mix_outputs))
         return out
 
 
