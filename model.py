@@ -4,6 +4,8 @@
 
 import numpy as np
 import torch
+from torch.nn.functional import dropout
+from torch.nn.modules import activation
 from torch.optim import Adam
 from torch.optim.lr_scheduler import MultiStepLR
 import pytorch_lightning as pl
@@ -29,7 +31,9 @@ class LightningModel(pl.LightningModule):
         """
         super().__init__()
         self.save_hyperparameters()
-        self.net  = MixAttNet(self.hparams.in_channels, self.hparams.attention)
+        self.net  = MixAttNet(self.hparams.in_channels, self.hparams.attention,
+                              self.hparams.supervision, self.hparams.depth,
+                              self.hparams.activation, self.hparams.se, self.hparams.dropout)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
@@ -95,7 +99,7 @@ class LightningModel(pl.LightningModule):
         loss_function = torch.nn.BCEWithLogitsLoss(pos_weight=self.get_pos_weight(targets))
         loss   = 0.
         coeffs = [1.] + 2*[0.8, 0.7, 0.6, 0.5]
-        if self.net.training and self.hparams.deep_supervision:
+        if self.net.training and self.hparams.supervision:
             for coeff, output in zip(coeffs, outputs):
                 loss += coeff * loss_function(output, targets)
         else:
@@ -163,7 +167,11 @@ class LightningModel(pl.LightningModule):
         return cls(
             in_channels       = config.train.in_channels,
             attention         = config.train.attention,
-            deep_supervision  = config.train.deep_supervision,
+            supervision       = config.train.supervision,
+            depth             = config.train.depth,
+            activation        = config.train.activation,
+            se                = config.train.se,
+            dropout           = config.train.dropout,
             lr                = config.train.lr,
             weight_decay      = config.train.weight_decay,
             milestones        = config.train.milestones,

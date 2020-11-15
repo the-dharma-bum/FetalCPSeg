@@ -7,6 +7,7 @@ Those two objects (DataModule and Model) will be used by a Trainer object
 to run the training pipeline.
 """
 
+from torch import nn
 from dataclasses import dataclass
 from typing import Tuple, Optional
 
@@ -72,9 +73,16 @@ class Train:
     Args:
 
         in_channels (int): Number of channels for input images and masks.
-        deep_supervision (bool): If True, the loss will be a weighted sum of losses computed at
-                                 several depths in the network.
+        supervision (bool): If True, the loss will be a weighted sum of losses computed at several
+                            depths in the network.
         attention (bool): Controls the use of Attention Module in the network.
+        depth: (int): How many Residual Blocks should the encoder and decoder have ?
+        activation (nn.Module): Which non linear layer to use ? Can be any Pytorch activation
+                                function.
+        se (bool): Use Squeeze and Excite or not. If True, add a Squeeze and excite layer with a 
+                   reduction of 1 at the end of every encoder and decoder Residual Blocks.
+        dropout (float): If True, add a Dropout Layer of specifed rate at the end of every encoder
+                         and decoder Residual Blocks. 
         lr (float): Initial learning rate.
         weight_decay (float): L2 penalty of model's weights. 
         milestones (Tuple[int]): Tuple of epoch indices. Must be increasing.
@@ -85,8 +93,12 @@ class Train:
     """
 
     in_channels:       int = 1
-    deep_supervision: bool = True
+    supervision:      bool = True
     attention:        bool = True
+    depth:             int = 3
+    activation:  nn.Module = nn.PReLU
+    se:               bool = True
+    dropout:         float = 0.3
     lr:              float = 1e-3
     weight_decay:    float = 5e-4
     milestones: Tuple[int] = (500, 750)
