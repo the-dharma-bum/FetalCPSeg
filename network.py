@@ -1,15 +1,12 @@
 import torch
 from torch import nn
-#from torch.nn import functional as F
 import functionals as F
 from typing import List
-
-from functionals import up_sample_and_concat3d
 
 
 # +---------------------------------------------------------------------------------------------+ #
 # |                                                                                             | #
-# |                                             BASE BLOCKS                                     | #
+# |                                         3D CONVOLUTION                                      | #
 # |                                                                                             | #
 # +---------------------------------------------------------------------------------------------+ #
 
@@ -28,6 +25,40 @@ class ConvBlock3D(nn.Module):
         return self.bn3d(self.conv3d(x))
 
 
+
+
+# +---------------------------------------------------------------------------------------------+ #
+# |                                                                                             | #
+# |                                   SQUEEZE AND EXCITE BLOCK                                  | #
+# |                                                                                             | #
+# +---------------------------------------------------------------------------------------------+ #
+
+
+class SELayer(nn.Module):
+    
+    def __init__(self, channel: int, reduction: int=16):
+        super().__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.fc       = nn.Sequential(
+            nn.Linear(channel, channel // reduction, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Linear(channel // reduction, channel, bias=False),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        b, c, _, _ = x.size()
+        y = self.avg_pool(x).view(b, c)
+        y = self.fc(y).view(b, c, 1, 1)
+        return x * y.expand_as(x)
+
+
+# +---------------------------------------------------------------------------------------------+ #
+# |                                                                                             | #
+# |                                   SQUEEZE AND EXCITE BLOCK                                  | #
+# |                                                                                             | #
+# +---------------------------------------------------------------------------------------------+ #
+
 class ResBlock(nn.Module):
     
     """ A 3D Residual Block. 
@@ -37,22 +68,17 @@ class ResBlock(nn.Module):
         Output.......: NonLinear(Normal Path + Shortcut)  
     """
 
-    def __init__(self, in_chan: int, out_chan: int, stride: int=1):
+    def __init__(self, in_chan: int, out_chan: int, activation: nn.Module, stride: int=1):
         super().__init__()
         self.conv1       = ConvBlock3D(in_chan, out_chan, stride=stride)
         self.conv2       = ConvBlock3D(out_chan, out_chan, bias=True)
-        self.non_linear  = nn.PReLU()
+        self.non_linear  = activation()
         self.down_sample = ConvBlock3D(in_chan, out_chan, kernel_size=1, padding=0, stride=stride)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out      = self.conv2(self.non_linear(self.conv1(x)))
         shortcut = self.down_sample(x)
         return self.non_linear(out + shortcut)
-
-
-#def up_sample3d(x, t, mode="trilinear"):
-#    """ 3D Up Sampling. """
-#    return F.interpolate(x, t.size()[2:], mode=mode, align_corners=False)
 
 
 
@@ -65,13 +91,13 @@ class ResBlock(nn.Module):
 
 class FastMixBlock(nn.Module):
     
-    def __init__(self, in_chan: int, out_chan: int) -> None:
+    def __init__(self, in_chan: int, out_chan: int, activation: nn.Module) -> None:
         super().__init__()
         kernel_size = [1, 3, 5, 7]
         self.num_groups = len(kernel_size)
         self.split_in_channels  = self.split_channels(in_chan, self.num_groups)
         self.split_out_channels = self.split_channels(out_chan, self.num_groups)
-        self.non_linear         = nn.PReLU()
+        self.non_linear         = activation()
         self.grouped_conv       = nn.ModuleList()
         for i in range(self.num_groups):
             self.grouped_conv.append(
@@ -102,15 +128,15 @@ class FastMixBlock(nn.Module):
 
 class Attention(nn.Module):
     
-    def __init__(self, in_chan: int, out_chan: int) -> None:
+    def __init__(self, in_chan: int, out_chan: int, activation: nn.Module) -> None:
         super().__init__()
-        self.mix1  = FastMixBlock(in_chan, out_chan)
-        self.mix2  = FastMixBlock(out_chan, out_chan)
+        self.mix1  = FastMixBlock(in_chan, out_chan, activation)
+        self.mix2  = FastMixBlock(out_chan, out_chan, activation)
         self.conv1 = nn.Conv3d(out_chan, out_chan, kernel_size=1)
         self.conv2 = nn.Conv3d(out_chan, out_chan, kernel_size=1)
         self.norm1 = nn.BatchNorm3d(out_chan)
         self.norm2 = nn.BatchNorm3d(out_chan)
-        self.non_linear = nn.PReLU()
+        self.non_linear = activation()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         shortcut = x
@@ -131,36 +157,37 @@ class Attention(nn.Module):
 
 class MixAttNet(nn.Module):
     
-    def __init__(self, in_channels: int=1, 
-                 attention: bool=True, supervision: bool=True, depth: int=4) -> None:
+    def __init__(self, in_channels: int=1, attention: bool=True, supervision: bool=True,
+                 depth: int=4, activation: nn.Module = nn.PReLU) -> None:
         super().__init__()
         dim = [16] + [2 ** (4+i) for i in range(depth)] + [2 ** (4+depth-1)]
         self.use_attention = attention
         self.supervision   = supervision
         self.depth         = depth
         self.init_block    = ConvBlock3D(in_channels, 16)
-        self.encoders      = self._init_encoders(depth, dim)
-        self.decoders      = self._init_decoders(depth, dim)
+        self.encoders      = self._init_encoders(depth, dim, activation)
+        self.decoders      = self._init_decoders(depth, dim, activation)
         self.down          = self._init_down_modules(depth, dim) 
         if self.use_attention:
-            self.attention = nn.ModuleList(depth * [Attention(16, 16)])
-        self.down_out      = nn.ModuleList(depth * [nn.Conv3d(16, 1, kernel_size=1)])
-        self.mix_out       = nn.ModuleList(depth * [nn.Conv3d(16, 1, kernel_size=1)])
+            self.attention = nn.ModuleList(depth * [Attention(16, 16, activation)])
+        if self.supervision:
+            self.down_out  = nn.ModuleList(depth * [nn.Conv3d(16, 1, kernel_size=1)])
+            self.mix_out   = nn.ModuleList(depth * [nn.Conv3d(16, 1, kernel_size=1)])
         self.last_block    = ConvBlock3D(depth * 16, 64, bias=True)
         self.final_conv    = nn.Conv3d(64, 1, kernel_size=1)
-        self.non_linear    = nn.PReLU()
+        self.non_linear    = activation()
 
     @staticmethod
-    def _init_encoders(depth, dim):
+    def _init_encoders(depth, dim, activation):
         strides = [1] + depth * [2]
         encoders = nn.ModuleList()
         for i in range(depth+1):
-            encoders.append(ResBlock(dim[i], dim[i+1], stride=strides[i]))
+            encoders.append(ResBlock(dim[i], dim[i+1], activation, stride=strides[i]))
         return encoders
     
     @staticmethod
-    def _init_decoders(depth, dim):
-        return nn.ModuleList([ResBlock(2*dim[i+1],  dim[i]) for i in range(depth)])
+    def _init_decoders(depth, dim, activation):
+        return nn.ModuleList([ResBlock(2*dim[i+1], dim[i], activation) for i in range(depth)])
 
     @staticmethod
     def _init_down_modules(depth, dim):
@@ -182,11 +209,10 @@ class MixAttNet(nn.Module):
         return decoders_outputs
 
     def through_down_modules(self, x, decoders_outputs):
-        down_outputs, down_outputs_for_supervision = [], []
+        down_outputs= []
         for i in range(self.depth):
             down_outputs.append(F.up_sample3d(self.down[i](decoders_outputs[i]), x))
-            down_outputs_for_supervision.append(self.down_out[i](down_outputs[i]))
-        return down_outputs, down_outputs_for_supervision
+        return down_outputs
 
     def through_attention_modules(self, down_outputs):
         attention_outputs, attention_maps = [], []
@@ -196,6 +222,12 @@ class MixAttNet(nn.Module):
             attention_maps.append(attention_map)
         return attention_outputs, attention_maps
 
+    def supervise(self, down_outputs, mix_outputs):
+        supervised_down_outputs = [self.down_out[i](down_outputs[i]) for i in range(self.depth)]
+        supervised_mix_outputs  = [self.mix_out[i](mix_outputs[i])   for i in range(self.depth)]
+        supervised_outputs = supervised_mix_outputs + supervised_down_outputs
+        return supervised_outputs
+
     def through_last_block(self, mix_outputs):
         return self.final_conv(self.non_linear(self.last_block(torch.cat(mix_outputs, dim=1))))
 
@@ -203,15 +235,15 @@ class MixAttNet(nn.Module):
         x = self.non_linear(self.init_block(x))
         encoders_outputs = self.through_encoders(x)
         decoders_outputs = self.through_decoders(encoders_outputs)
-        down_outputs, down_outputs_for_supervision = self.through_down_modules(x, decoders_outputs)
+        down_outputs     = self.through_down_modules(x, decoders_outputs)
         mix_outputs = down_outputs
         if self.attention:
-            attention_outputs, attention_maps = self.through_attention_modules(down_outputs)
-            mix_outputs = attention_outputs
-        mix_outputs_for_supervision = [self.mix_out[i](mix_outputs[i]) for i in range(self.depth)]
+            mix_outputs, attention_maps = self.through_attention_modules(down_outputs)
         out = self.through_last_block(mix_outputs)
-        outputs_for_supervision = mix_outputs_for_supervision + down_outputs_for_supervision
-        return out, *outputs_for_supervision
+        if self.supervision:
+            supervised_outputs = self.supervise(down_outputs, mix_outputs)
+            return out, *supervised_outputs
+        return out
 
 
 
