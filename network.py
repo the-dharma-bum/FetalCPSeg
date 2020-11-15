@@ -1,7 +1,10 @@
 import torch
 from torch import nn
-from torch.nn import functional as F
+#from torch.nn import functional as F
+import functionals as F
 from typing import List
+
+from functionals import up_sample_and_concat3d
 
 
 # +---------------------------------------------------------------------------------------------+ #
@@ -47,9 +50,9 @@ class ResBlock(nn.Module):
         return self.non_linear(out + shortcut)
 
 
-def up_sample3d(x, t, mode="trilinear"):
-    """ 3D Up Sampling. """
-    return F.interpolate(x, t.size()[2:], mode=mode, align_corners=False)
+#def up_sample3d(x, t, mode="trilinear"):
+#    """ 3D Up Sampling. """
+#    return F.interpolate(x, t.size()[2:], mode=mode, align_corners=False)
 
 
 
@@ -148,25 +151,28 @@ class MixAttNet(nn.Module):
         self.final_conv = nn.Conv3d(64, 1, kernel_size=1)
         self.non_linear = nn.PReLU()
 
+    def feedforward_encoders(self, x):
+        encoders_outputs = [self.encoders[0](x)]
+        for i in range(self.num_blocks):
+            encoders_outputs.append(self.encoders[i+1](encoders_outputs[i]))
+        return encoders_outputs
+
+    def feedforward_decoders(self, encoders_outputs):
+        decoders_outputs = [self.decoders[-1](
+            F.up_sample_and_concat3d(encoders_outputs[-2], encoders_outputs[-1]))]
+        for i in reversed(range(self.num_blocks-1)):
+            decoders_outputs.append(self.decoders[i](
+                F.up_sample_and_concat3d(encoders_outputs[i], decoders_outputs[-1])))
+        decoders_outputs.reverse()
+        return decoders_outputs
+
+
     def forward(self, x):
         x = self.non_linear(self.init_block(x))
-        encoders_outputs = [self.encoders[0](x)]
-        for i in range(1, self.num_blocks+1):
-            encoders_outputs.append(self.encoders[i](encoders_outputs[i-1]))
-        decoders_outputs = [self.decoders[-1](
-            torch.cat((encoders_outputs[-2], 
-                       up_sample3d(encoders_outputs[-1], encoders_outputs[-2])), dim=1))]
-        for i in reversed(range(self.num_blocks-1)):
-            upsampling_output   = up_sample3d(decoders_outputs[-1], encoders_outputs[i])
-            concatenated_output = torch.cat((encoders_outputs[i], upsampling_output), dim=1)
-            decoders_outputs.append(self.decoders[i](concatenated_output))
-        decoders_outputs.reverse()
-        down_outputs  = []
-        for i in range(self.num_blocks):
-            down_outputs.append(up_sample3d(self.down[i](decoders_outputs[i]), x))
-        down_outputs_for_supervision = []
-        for i in range(self.num_blocks):
-            down_outputs_for_supervision.append(self.down_out[i](down_outputs[i]))
+        encoders_outputs = self.feedforward_encoders(x)
+        decoders_outputs = self.feedforward_decoders(encoders_outputs)
+        down_outputs = [F.up_sample3d(self.down[i](decoders_outputs[i]), x) for i in range(self.num_blocks)]
+        down_outputs_for_supervision = [self.down_out[i](down_outputs[i]) for i in range(self.num_blocks)]
         mix_outputs = []
         if self.attention:
             attention_maps = []
@@ -175,13 +181,11 @@ class MixAttNet(nn.Module):
                 mix_outputs.append(mix_output)
                 attention_maps.append(attention_map)
         else:
-            for i in range(self.num_blocks):
-                mix_outputs.append(down_outputs[i])
+            mix_outputs = [down_outputs[i] for i in range(self.num_blocks)]
         mix_outputs_for_supervision = [self.mix_out[i](mix_outputs[i]) for i in range(self.num_blocks)]
-        out = self.non_linear(self.last_block(torch.cat(mix_outputs, dim=1)))
-        out = self.final_conv(out)
-        outputs_for_supersion = mix_outputs_for_supervision + down_outputs_for_supervision
-        return out, *outputs_for_supersion
+        out = self.final_conv(self.non_linear(self.last_block(torch.cat(mix_outputs, dim=1))))
+        outputs_for_supervision = mix_outputs_for_supervision + down_outputs_for_supervision
+        return out, *outputs_for_supervision
 
 
 
