@@ -2,9 +2,10 @@
 
 import torch
 from torch import nn
-from network.layers import ConvBlock3D,SEBlock3D, ResBlock, FastMixBlock, Attention 
+from torch.tensor import Tensor
+from network.layers import ConvBlock3D, ResBlock, Attention 
 from network import functionals as F
-from typing import List
+from typing import List, Tuple, Union
 
 
 # +---------------------------------------------------------------------------------------------+ #
@@ -58,7 +59,8 @@ class MixAttNet(nn.Module):
         self.non_linear    = activation()
 
     @staticmethod
-    def _init_encoders(depth, dim, activation, se, dropout):
+    def _init_encoders(depth: int, dim: int,
+                       activation: nn.Module, se: bool, dropout: float) -> nn.ModuleList:
         strides = [1] + depth * [2]
         encoders = nn.ModuleList()
         for i in range(depth+1):
@@ -66,20 +68,21 @@ class MixAttNet(nn.Module):
         return encoders
     
     @staticmethod
-    def _init_decoders(depth, dim, activation, se, dropout):
+    def _init_decoders(depth: int, dim: int, 
+                       activation: nn.Module, se: bool, dropout: float) -> nn.ModuleList:
         return nn.ModuleList([ResBlock(2*dim[i+1], dim[i], activation, se, dropout) for i in range(depth)])
 
     @staticmethod
-    def _init_down_modules(depth, dim):
+    def _init_down_modules(depth: int, dim: int) -> nn.ModuleList:
         return nn.ModuleList([ConvBlock3D(dim[i] , 16, kernel_size=1) for i in range(depth)])
 
-    def through_encoders(self, x):
+    def through_encoders(self, x: torch.Tensor) -> List[torch.Tensor]:
         encoders_outputs = [self.encoders[0](x)]
         for i in range(self.depth):
             encoders_outputs.append(self.encoders[i+1](encoders_outputs[i]))
         return encoders_outputs
 
-    def through_decoders(self, encoders_outputs):
+    def through_decoders(self, encoders_outputs: List[torch.Tensor]) -> List[torch.Tensor]:
         decoders_outputs = [self.decoders[-1](
             F.up_sample_and_concat3d(encoders_outputs[-2], encoders_outputs[-1]))]
         for i in reversed(range(self.depth-1)):
@@ -88,13 +91,14 @@ class MixAttNet(nn.Module):
         decoders_outputs.reverse()
         return decoders_outputs
 
-    def through_down_modules(self, x, decoders_outputs):
+    def through_down_modules(self, x: torch.Tensor, 
+                             decoders_outputs: List[torch.Tensor]) -> List[torch.Tensor]:
         down_outputs= []
         for i in range(self.depth):
             down_outputs.append(F.up_sample3d(self.down[i](decoders_outputs[i]), x))
         return down_outputs
 
-    def through_attention_modules(self, down_outputs):
+    def through_attention_modules(self, down_outputs: List[torch.Tensor]) -> Tuple[List[torch.Tensor]]:
         attention_outputs, attention_maps = [], []
         for i in range(self.depth):
             mix_output, attention_map = self.attention[i](down_outputs[i])
@@ -102,16 +106,17 @@ class MixAttNet(nn.Module):
             attention_maps.append(attention_map)
         return attention_outputs, attention_maps
 
-    def supervise(self, down_outputs, mix_outputs):
+    def supervise(self, 
+                  down_outputs: List[torch.Tensor], mix_outputs: List[torch.Tensor]) -> List[torch.Tensor]:
         supervised_down_outputs = [self.down_out[i](down_outputs[i]) for i in range(self.depth)]
         supervised_mix_outputs  = [self.mix_out[i](mix_outputs[i])   for i in range(self.depth)]
         supervised_outputs = supervised_mix_outputs + supervised_down_outputs
         return supervised_outputs
 
-    def through_last_block(self, mix_outputs):
+    def through_last_block(self, mix_outputs; List[torch.Tensor]) -> torch.Tensor:
         return self.final_conv(self.non_linear(self.last_block(torch.cat(mix_outputs, dim=1))))
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> Union[torch.Tensor, Tuple[torch.Tensor, List[torch.Tensor]]]:
         x = self.non_linear(self.init_block(x))
         encoders_outputs = self.through_encoders(x)
         decoders_outputs = self.through_decoders(encoders_outputs)
@@ -122,7 +127,7 @@ class MixAttNet(nn.Module):
         out = self.through_last_block(mix_outputs)
         if self.supervision:
             supervised_outputs = self.supervise(down_outputs, mix_outputs)
-            return out, *supervised_outputs
+            return (out, *supervised_outputs)
         return out
 
 
