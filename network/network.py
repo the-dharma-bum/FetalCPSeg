@@ -113,7 +113,7 @@ class MixAttNet(nn.Module):
         supervised_outputs = supervised_mix_outputs + supervised_down_outputs
         return supervised_outputs
 
-    def through_last_block(self, mix_outputs; List[torch.Tensor]) -> torch.Tensor:
+    def through_last_block(self, mix_outputs: List[torch.Tensor]) -> torch.Tensor:
         return self.final_conv(self.non_linear(self.last_block(torch.cat(mix_outputs, dim=1))))
 
     def forward(self, x: torch.Tensor) -> Union[torch.Tensor, Tuple[torch.Tensor, List[torch.Tensor]]]:
