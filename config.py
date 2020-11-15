@@ -81,7 +81,7 @@ class Train:
                                 function.
         se (bool): Use Squeeze and Excite or not. If True, add a Squeeze and excite layer with a 
                    reduction of 1 at the end of every encoder and decoder Residual Blocks.
-        dropout (float): If True, add a Dropout Layer of specifed rate at the end of every encoder
+        dropout (float): If > 0, add a Dropout Layer of specifed rate at the end of every encoder
                          and decoder Residual Blocks. 
         lr (float): Initial learning rate.
         weight_decay (float): L2 penalty of model's weights. 

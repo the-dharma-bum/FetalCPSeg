@@ -1,3 +1,5 @@
+""" Here is defined  the main Mixed Attention Network class. """
+
 import torch
 from torch import nn
 from network.layers import ConvBlock3D,SEBlock3D, ResBlock, FastMixBlock, Attention 
@@ -12,9 +14,31 @@ from typing import List
 # +---------------------------------------------------------------------------------------------+ #
 
 class MixAttNet(nn.Module):
+
+    """ Mixed Attention Network.
+        Adapted from https://github.com/wulalago/FetalCPSeg/blob/master/Network/MixAttNet.py 
+    """
     
     def __init__(self, in_channels: int=1, attention: bool=True, supervision: bool=True,
                  depth: int=4, activation: nn.Module = nn.PReLU, se: bool=True, dropout: float=0.3):
+        """ Init the network to be trained.
+
+        Args:
+            in_channels (int, optional): Number of input 3d images channels. Defaults to 1.
+            attention (bool, optional): If True, will refine the feature maps with a stagewise
+                                        attention mechanism. Defaults to True.
+            supervision (bool, optional): If True, will perfom 3d convolution at each stage
+                                          before and after attention. The outputs will be used
+                                          to compute a weighted loss. Defaults to True.
+            depth (int, optional): How many stages to use for the encoder and decoder. That is,
+                                   how many Residual Block. Defaults to 4.
+            activation (nn.Module, optional): Any pytorch activation function. Defaults to nn.PReLU.
+            se (bool, optional): Use Squeeze and Excite or not. If True, add a Squeeze and excite
+                                 layer with a reduction of 1 at the end of every encoder and decoder
+                                 Residual Blocks. Defaults to True.
+            dropout (float, optional): If > 0, add a Dropout Layer of specifed rate at the end of 
+                                       every encoder and decoder Residual Blocks. Defaults to 0.3.
+        """
         super().__init__()
         dim = [16] + [2 ** (4+i) for i in range(depth)] + [2 ** (4+depth-1)]
         self.use_attention = attention

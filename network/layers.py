@@ -1,3 +1,11 @@
+""" Here are defined the 5 basic blocks to be used to construct a Mixed Attention Network:
+    1. ConvBlock3D.: A simple sequence of Conv3d -> BatchNorm3d.
+    2. SEBlock3D...: A channel wise Squeeze and Excite module. 
+    3. ResBlock....: A classic convolutional module with skip connection.     
+    4. FastMixBlock: A convolutional module with mixed depthwise kernels.
+    5. Attention...: An attention mechanism based on FastMixBlock modules.
+"""
+
 import torch
 from torch import nn
 from typing import List
@@ -39,7 +47,14 @@ class SEBlock3D(nn.Module):
         Hu et al., Squeeze-and-Excitation Networks, arXiv:1709.01507*
     """
 
-    def __init__(self, in_channels, activation, reduction_ratio=1):
+    def __init__(self, in_channels: int, activation: nn.Module, reduction_ratio: int=1):
+        """ Init a 3D channel wise squeeze and excite module.
+        Args:
+            in_channels (int): The input tensor channel dimension.
+            activation (nn.Module): Any Pytorch activation function.
+            reduction_ratio (int, optional): The output tensor channel dimension will be  
+                                             in_channels // reduction_ratio. Defaults to 1.
+        """
         super().__init__()
         self.avg_pool = nn.AdaptiveAvgPool3d(1)
         self.reduction_ratio = reduction_ratio
@@ -47,7 +62,7 @@ class SEBlock3D(nn.Module):
         self.fc2 = nn.Linear(in_channels // reduction_ratio, in_channels, bias=True)
         self.relu = activation()
 
-    def forward(self, input_tensor):
+    def forward(self, input_tensor: torch.Tensor) -> torch.Tensor:
         batch_size, num_channels, D, H, W = input_tensor.size()
         squeeze_tensor = self.avg_pool(input_tensor)
         fc_out_1 = self.relu(self.fc1(squeeze_tensor.view(batch_size, num_channels)))
@@ -73,6 +88,16 @@ class ResBlock(nn.Module):
 
     def __init__(self, in_chan: int, out_chan: int, activation: nn.Module, se: bool,
                  dropout: float, stride: int=1):
+        """ A classic 3D convolution block with skip connection.
+
+        Args:
+            in_chan (int): The input tensor channel dimension.
+            out_chan (int): The output tensor channel dimension.
+            activation (nn.Module): Any Pytorch activation function.
+            se (bool): If True, add a Squeeze and Excite module just before the residual sum. 
+            dropout (float): If > 0, add a dropout layer just before the residual sum
+            stride (int, optional): Convolution kernel stride. Defaults to 1.
+        """
         super().__init__()
         self.conv1       = ConvBlock3D(in_chan, out_chan, stride=stride)
         self.conv2       = ConvBlock3D(out_chan, out_chan, bias=True)
@@ -87,9 +112,9 @@ class ResBlock(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         out      = self.conv2(self.non_linear(self.conv1(x)))
         if self.use_se: 
-            out = self.se(out)
+            out  = self.se(out)
         if self.dropout_rate > 0:
-            out = self.dropout(out)
+            out  = self.dropout(out)
         shortcut = self.down_sample(x)
         return self.non_linear(out + shortcut)
 
@@ -104,7 +129,18 @@ class ResBlock(nn.Module):
 
 class FastMixBlock(nn.Module):
     
+    """ A convolutional module with mixed depthwise kernels. Will be used for the attention 
+        mechanism. Adapted from https://github.com/romulus0914/MixNet-PyTorch/blob/master/mixnet.py. 
+    """
+
     def __init__(self, in_chan: int, out_chan: int, activation: nn.Module) -> None:
+        """ Init a mixed depthwise convolutional module.
+
+        Args:
+            in_chan (int): The input tensor channel dimension.
+            out_chan (int): The output tensor channel dimension.
+            activation (nn.Module): Any Pytorch activation function.
+        """
         super().__init__()
         kernel_size = [1, 3, 5, 7]
         self.num_groups = len(kernel_size)
@@ -140,8 +176,19 @@ class FastMixBlock(nn.Module):
 # +---------------------------------------------------------------------------------------------+ #
 
 class Attention(nn.Module):
+
+    """ A stagewise attention mechanism based on mixed depthwise convolution with 4 kernels of 
+        sizes 1, 3, 5, 7.
+    """ 
     
     def __init__(self, in_chan: int, out_chan: int, activation: nn.Module) -> None:
+        """ Init a stagewise attention module.
+
+        Args:
+            in_chan (int): The input tensor channel dimension.
+            out_chan (int): The output tensor channel dimension.
+            activation (nn.Module): Any Pytorch activation function.
+        """
         super().__init__()
         self.mix1  = FastMixBlock(in_chan, out_chan, activation)
         self.mix2  = FastMixBlock(out_chan, out_chan, activation)
