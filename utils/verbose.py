@@ -171,6 +171,7 @@ class Table:
 class State():
 
     def __init__(self, table_width=42):
+        self.lr                  = 0.
         self.last_avg_train_loss = 9.999
         self.last_avg_val_loss   = 9.9999
         self.last_avg_train_dice = 0.
@@ -188,10 +189,9 @@ class State():
     def update_current_train(self, output):
         current_loss = output['Loss/Train']
         current_dice  = output['Dice Score/Train']
-        current_lr   = 0.1
         self.epoch_train_losses.append(current_loss.item())
         self.epoch_train_dices.append(current_dice)
-        self.table.update_current(current_loss, current_dice, current_lr)
+        self.table.update_current(current_loss, current_dice, self.lr)
 
     def update_current_val(self, output):
         current_loss = output['val_loss']
@@ -242,7 +242,7 @@ class VerboseCallback(Callback):
     def on_train_batch_end(self,  trainer, pl_module, *args):
         if pl_module.current_epoch==0:
             return
-        output = trainer.callback_metrics   
+        output = trainer.callback_metrics
         self.state.update_current_train(output)
 
     def on_validation_batch_end(self, trainer, pl_module, *args):
@@ -258,6 +258,13 @@ class VerboseCallback(Callback):
         self.state.update_last_average()
         self.state.update_best_average()
         self.state.reset_average()
+
+    def on_train_epoch_start(self, trainer, *args):
+        # ugly trick to access the current learning rate
+        # using the learning rate monitor callback. 
+        scheduler_name = trainer.callbacks[0].lr_sch_names[0]
+        lr = trainer.callbacks[0]._extract_lr(trainer, 'epoch')[scheduler_name]
+        self.state.lr = lr
 
     def on_fit_end(self, *args):
         print(2*'\n')

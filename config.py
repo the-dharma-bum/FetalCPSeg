@@ -51,9 +51,7 @@ class DataModule:
     target_resolution:      Tuple[int] = (1.5*2, 1.5*2, 8)
     target_shape: Optional[Tuple[int]] = (128, 128, 26)
     class_indexes:          Tuple[int] = (1, )
-    patch_size:   Optional[Tuple[int]] = None
-    remove_unlabelled_slices:     bool = True
-    remove_slices_padding:         int = 1
+    patch_size:   Optional[Tuple[int]] = None   
     train_batch_size:              int = 2
     val_batch_size:                int = 2
     num_workers:                   int = 4
@@ -97,13 +95,13 @@ class Train:
     in_channels:       int = 1
     supervision:      bool = True
     attention:        bool = True
-    depth:             int = 4
+    depth:             int = 3
     activation:  nn.Module = nn.PReLU
     se:               bool = False
     dropout:         float = 0.
     lr:              float = 1e-3
     weight_decay:    float = 5e-4
-    milestones: Tuple[int] = (50, 100)
+    milestones: Tuple[int] = (50, 75, 100)
     gamma:          float  = 0.1
     verbose:         bool  = True
 
