@@ -5,7 +5,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, EarlyStopping
 from model import LightningModel
 from data import DataModule
-from verbose import VerboseCallback
+from utils import VerboseCallback
 import config as cfg
 
 
