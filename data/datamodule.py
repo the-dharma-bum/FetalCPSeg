@@ -47,13 +47,13 @@ class DataModule(LightningDataModule):
                                          Defaults to 4.
         """
         super().__init__()
-        self.input_root        = input_root
-        self.target_resolution = target_resolution
-        self.target_shape      = target_shape
-        self.class_indexes     = class_indexes
-        self.train_batch_size  = train_batch_size
-        self.val_batch_size    = val_batch_size
-        self.num_workers       = num_workers
+        self.input_root               = input_root
+        self.target_resolution        = target_resolution
+        self.target_shape             = target_shape
+        self.class_indexes            = class_indexes
+        self.train_batch_size         = train_batch_size
+        self.val_batch_size           = val_batch_size
+        self.num_workers              = num_workers
         self.train_transform, self.test_transform = None, None
         #self.train_transform, self.test_transform = self.init_transforms(patch_size)
 
@@ -88,12 +88,11 @@ class DataModule(LightningDataModule):
             val_length += 1
         if stage == 'fit' or stage is None:
             full_set = NiftiDataset(self.input_root, self.target_resolution, self.target_shape,
-                                    self.class_indexes, transform=self.train_transform)
+                                    self.class_indexes, self.train_transform)
             self.train_set, self.val_set = random_split(full_set, [train_length, val_length])
         if stage == 'test' or stage is None:
-            self.test_set = NiftiDataset(self.input_root, self.target_resolution,
-                                         self.target_shape, self.class_indexes, 
-                                         transform=self.test_transform)
+            self.test_set = NiftiDataset(self.input_root, self.target_resolution, self.target_shape,
+                                         self.class_indexes, self.train_transform)
 
     def train_dataloader(self) -> DataLoader:
         return DataLoader(self.train_set, num_workers=self.num_workers,
@@ -111,5 +110,5 @@ class DataModule(LightningDataModule):
     def from_config(cls, config):
         """ From a DataModule config object (see config.py) instanciate a Datamodule object. """
         return cls(config.input_root, config.target_resolution, config.target_shape,
-                   config.class_indexes,  config.train_batch_size, 
+                   config.class_indexes, config.patch_size, config.train_batch_size, 
                    config.val_batch_size, config.num_workers)

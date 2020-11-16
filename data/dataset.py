@@ -18,7 +18,7 @@ class NiftiDataset(Dataset):
     """ A Pytorch Dataset to load nifti couples (image, mask). """
 
     def __init__(self, rootdir: str, target_resolution: Tuple[int] = (1.5, 1.5, 8),
-                 target_shape: Tuple[int]= None, class_indexes: Tuple[int] = [1, 2, 3, 4],
+                 target_shape: Tuple[int]= None, class_indexes: Tuple[int] = (1, 2, 3, 4),
                  transform: Transform=None) -> None:
         """ Instanciate a dataset able to apply 3d resampling and transforms to 
             couple (image, mask).
@@ -37,8 +37,8 @@ class NiftiDataset(Dataset):
                                     * Left  kidney.: 3
                                     * Spleen.......: 4
                                  This parameter gives class indexes to keep for the classification
-                                 task. E.g: [1, 2] for segment liver and right kidney only.
-                                 Default to [1, 2, 3, 4] (ie all classes).
+                                 task. E.g: (1, 2) for segment liver and right kidney only.
+                                 Default to (1, 2, 3, 4) (ie all classes).
             transform (Transform, optional): Transformations to apply on couple (image, mask).
                                              Based on volumentations. Defaults to None.
                                              See https://github.com/ashawkey/volumentations.
@@ -70,35 +70,6 @@ class NiftiDataset(Dataset):
                                        self.target_resolution, new_shape=self.target_shape)
         return resample_img(image, target_affine=target_affine,
                             target_shape=self.target_shape, interpolation='nearest')
-
-    @staticmethod
-    def remove_black_slices(image: np.ndarray, mask: np.ndarray, padding: int) -> Tuple[np.ndarray]:
-        """ Remove unlabelled slices on both image and masks arrays.
-        Unlabelled slices are identified simply by counting nonzero pixels and 
-        finding the lowest and highest non black slices. 
-
-        Args:
-            image (np.ndarray): The original image 3D array
-            mask (np.ndarray): The original mask 3D array
-            padding (int): Extra unlabelled slices can be added at the bottom and top.
-
-        Returns:
-            Tuple[np.ndarray]: The reduced couple (image array, mask array).
-        """
-        nb_slices = mask.shape[2]
-        num_non_black_pixels_per_slice = np.count_nonzero(mask, axis=(0,1))
-        min_z, max_z = 0, 0
-        for z in range(nb_slices):
-            if num_non_black_pixels_per_slice[z] > 0:
-                min_z = z
-                break
-        for z in reversed(range(nb_slices)):
-            if num_non_black_pixels_per_slice[z] > 0:
-                max_z = z
-                break
-        min_z = max(min_z-padding, 0)
-        max_z = min(max_z+padding, nb_slices)
-        return image[:,:,min_z:max_z], mask[:,:,min_z:max_z]
 
     def select_classes(self, mask: np.ndarray) -> None:
         """ A vanilla mask has 4 classes annotated as follows:
@@ -152,8 +123,6 @@ class NiftiDataset(Dataset):
         image_array, mask_array = image.get_fdata(), mask.get_fdata()
         image_array, mask_array = image_array.astype(np.float32), mask_array.astype(np.float32)
         self.select_classes(mask_array)
-        if self.remove_unlabelled_slices:
-            image_array, mask_array = self.remove_black_slices(image_array, mask_array)
         if self.transform is not None:
             image_array, mask_array = self.apply_transform(image_array, mask_array)
         image_tensor = torch.from_numpy(image_array)

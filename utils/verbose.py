@@ -199,6 +199,12 @@ class State():
         self.epoch_val_losses.append(current_loss.item())
         self.epoch_val_dices.append(current_dice)
 
+    def reset_average(self):
+        self.epoch_train_losses  = []
+        self.epoch_train_dices   = []
+        self.epoch_val_losses    = []
+        self.epoch_val_dices     = []
+
     def update_best_average(self):
         self.best_avg_train_loss = min(self.best_avg_train_loss, self.last_avg_train_loss)
         self.best_avg_val_loss   = min(self.best_avg_val_loss,   self.last_avg_val_loss)
@@ -251,6 +257,7 @@ class VerboseCallback(Callback):
             return
         self.state.update_last_average()
         self.state.update_best_average()
+        self.state.reset_average()
 
     def on_fit_end(self, *args):
         print(2*'\n')
