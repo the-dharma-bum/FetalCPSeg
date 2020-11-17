@@ -71,6 +71,16 @@ class NiftiDataset(Dataset):
         return resample_img(image, target_affine=target_affine,
                             target_shape=self.target_shape, interpolation='nearest')
 
+    @staticmethod
+    def normalize(data: np.ndarray) -> np.ndarray:
+        """ Normalize pixel values to [0,1].
+        Args:
+            data (np.ndarray): A 3D array (from a Nifti image).
+        Returns:
+            np.ndarray: A 3d array normalized.
+        """
+        return (data - np.min(data))/(np.max(data) - np.min(data))
+
     def select_classes(self, mask: np.ndarray) -> None:
         """ A vanilla mask has 4 classes annotated as follows:
             * Background...: 0
@@ -122,6 +132,7 @@ class NiftiDataset(Dataset):
         image, mask = self.resample(image), self.resample(mask)
         image_array, mask_array = image.get_fdata(), mask.get_fdata()
         image_array, mask_array = image_array.astype(np.float32), mask_array.astype(np.float32)
+        image_array = self.normalize(image_array)
         self.select_classes(mask_array)
         if self.transform is not None:
             image_array, mask_array = self.apply_transform(image_array, mask_array)
