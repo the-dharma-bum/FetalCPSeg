@@ -1,4 +1,5 @@
 import os
+import subprocess
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, EarlyStopping
 from model import LightningModel
@@ -9,7 +10,10 @@ import config as cfg
 def get_data():
   print("Downloading dataset ...")
   os.system('apt install jq pv')
-  os.system("bash download.sh 'https://mega.nz/#!tFNGkLQS!mpq8s6gK2SH6xJOBeYsw62yQlZAN9of4_nHnMjQjfMQ'")
+  os.system('chmod 755 /content/FetalCPSeg/utils/colab/download.sh')
+  subprocess.check_call(
+    ['/content/FetalCPSeg/utils/colab/download.sh', 
+     'https://mega.nz/#!tFNGkLQS!mpq8s6gK2SH6xJOBeYsw62yQlZAN9of4_nHnMjQjfMQ'])
   print("Extracting dataset...")
   os.system('unzip -q patnum_data.zip')
 
