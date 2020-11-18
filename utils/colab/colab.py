@@ -8,8 +8,10 @@ import config as cfg
 
 
 def get_data():
-  os.system("/content/FetalCPSeg/utils/colab/download 'https://mega.nz/#!tFNGkLQS!mpq8s6gK2SH6xJOBeYsw62yQlZAN9of4_nHnMjQjfMQ'")
+  os.system('apt install jq pv')
+  os.system("bash utils/colab/download.sh 'https://mega.nz/#!tFNGkLQS!mpq8s6gK2SH6xJOBeYsw62yQlZAN9of4_nHnMjQjfMQ'")
   os.system('unzip -q patnum_data.zip')
+
 
 def init_trainer():
   lr_logger      = LearningRateMonitor()
