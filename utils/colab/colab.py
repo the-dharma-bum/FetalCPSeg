@@ -4,24 +4,12 @@ from pytorch_lightning.callbacks import LearningRateMonitor, EarlyStopping
 from model import LightningModel
 from data import DataModule
 import config as cfg
-from google.colab import files
+
 
 
 def get_data():
-  os.system("./download 'https://mega.nz/#!tFNGkLQS!mpq8s6gK2SH6xJOBeYsw62yQlZAN9of4_nHnMjQjfMQ'")
-
-
-def setup():
-  print('Downloading githug repository...')
-  os.system('git clone https://github.com/the-dharma-bum/FetalCPSeg/')
+  os.system("/content/FetalCPSeg/utils/colab/download 'https://mega.nz/#!tFNGkLQS!mpq8s6gK2SH6xJOBeYsw62yQlZAN9of4_nHnMjQjfMQ'")
   os.system('unzip -q patnum_data.zip')
-  os.chdir('FetalCPSeg')
-  os.system('git checkout -b rewrite_network')
-  os.system('git branch --set-upstream-to=origin/rewrite_network rewrite_network')
-  os.system('git pull -q')
-  print('Downloading requirements...')
-  os.system('pip install -q -r requirements.txt')
-
 
 def init_trainer():
   lr_logger      = LearningRateMonitor()
@@ -47,7 +35,7 @@ def download_outputs():
 
 
 def colab_training(dm_config, train_config):
-    setup()
+    get_data()
     run_training(dm_config, train_config)
     download_outputs()
 
