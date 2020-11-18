@@ -19,7 +19,7 @@ class MixAttNet(nn.Module):
     """ Mixed Attention Network.
         Adapted from https://github.com/wulalago/FetalCPSeg/blob/master/Network/MixAttNet.py 
     """
-    
+
     def __init__(self, in_channels: int=1, attention: bool=True, supervision: bool=True,
                  depth: int=4, activation: nn.Module = nn.PReLU, se: bool=True, dropout: float=0.3):
         """ Init the network to be trained.
@@ -41,7 +41,7 @@ class MixAttNet(nn.Module):
                                        every encoder and decoder Residual Blocks. Defaults to 0.3.
         """
         super().__init__()
-        dim = [16] + [2 ** (4+i) for i in range(depth)] + [2 ** (4+depth-1)]
+        dim = [2 ** 4] + [2 ** (4+i) for i in range(depth)] + [2 ** (4+depth-1)]
         self.use_attention = attention
         self.supervision   = supervision
         self.depth         = depth
