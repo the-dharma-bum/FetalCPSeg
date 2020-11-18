@@ -7,8 +7,10 @@ import config as cfg
 
 
 def get_data():
+  print("Downloading dataset ...")
   os.system('apt install jq pv')
   os.system("bash download.sh 'https://mega.nz/#!tFNGkLQS!mpq8s6gK2SH6xJOBeYsw62yQlZAN9of4_nHnMjQjfMQ'")
+  print("Extracting dataset...")
   os.system('unzip -q patnum_data.zip')
 
 
