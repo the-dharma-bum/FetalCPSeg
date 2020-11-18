@@ -6,10 +6,9 @@ from data import DataModule
 import config as cfg
 
 
-
 def get_data():
   os.system('apt install jq pv')
-  os.system("bash utils/colab/download.sh 'https://mega.nz/#!tFNGkLQS!mpq8s6gK2SH6xJOBeYsw62yQlZAN9of4_nHnMjQjfMQ'")
+  os.system("bash download.sh 'https://mega.nz/#!tFNGkLQS!mpq8s6gK2SH6xJOBeYsw62yQlZAN9of4_nHnMjQjfMQ'")
   os.system('unzip -q patnum_data.zip')
 
 
@@ -32,13 +31,22 @@ def run_training(dm_config, train_config):
 
 
 def download_outputs():
-    os.system('zip -r /content/output.zip /content/FetalCPSeg/lightning_logs/version_0/')
-    files.download("/content/output.zip")
+  os.system('zip -r /content/output.zip /content/FetalCPSeg/lightning_logs/version_0/')
+  files.download("/content/output.zip")
 
 
 def colab_training(dm_config, train_config):
-    get_data()
-    run_training(dm_config, train_config)
-    download_outputs()
+  get_data()
+  run_training(dm_config, train_config)
+  download_outputs()
 
 
+def setup():
+  print('Downloading github repository...')
+  os.system('git clone https://github.com/the-dharma-bum/FetalCPSeg/')
+  os.chdir('FetalCPSeg')
+  os.system('git checkout -b rewrite_network')
+  os.system('git branch --set-upstream-to=origin/rewrite_network rewrite_network')
+  os.system('git pull -q')
+  print('Downloading requirements...')
+  os.system('pip install -q -r requirements.txt')
