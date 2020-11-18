@@ -36,22 +36,15 @@ def run_training(dm_config, train_config):
   model = LightningModel.from_config(config)
   try: 
     trainer = init_trainer()
+    print('Ready. Training will start !')
     trainer.fit(model, data)
   except MisconfigurationException:
     print('Did you forget to setup a GPU runtime ?')
-  print('Ready. Training will start !')
-  
-
-
-def download_outputs():
-  os.system('zip -r /content/output.zip /content/FetalCPSeg/lightning_logs/version_0/')
-  files.download("/content/output.zip")
 
 
 def colab_training(dm_config, train_config):
   get_data()
   run_training(dm_config, train_config)
-  download_outputs()
 
 
 def setup():
