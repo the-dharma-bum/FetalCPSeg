@@ -125,7 +125,17 @@ class LightningModel(pl.LightningModule):
         targets = targets.flatten()
         outputs[outputs > ratio] = np.float32(1)
         outputs[outputs < ratio] = np.float32(0)    
-        return float(2 * (targets * outputs).sum())/float(targets.sum() + outputs.sum())     
+        return float(2 * (targets * outputs).sum())/float(targets.sum() + outputs.sum())
+
+    def mean_dice(self, outputs, targets):
+        dices = []
+        for i in range(self.hparams.num_classes):
+            predicted_mask = outputs[:,i,:,:,:]
+            target_mask    = targets[:,i,:,:,:]
+            predicted_mask_array = predicted_mask.cpu().detach().numpy()
+            target_mask_array    = target_mask.cpu().detach().numpy()
+            dices.append(self.dice_score(predicted_mask_array, target_mask_array))
+            return sum(dices)/len(dices)
 
     def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> Dict:
         """ Perform the classic training step (infere + compute loss) on a batch.
@@ -143,9 +153,10 @@ class LightningModel(pl.LightningModule):
         inputs, targets = batch        
         outputs = self.net(inputs)
         loss = self.compute_loss(outputs, targets)
-        outputs_array = outputs[0].cpu().detach().numpy()
-        targets_array = targets.cpu().detach().numpy()
-        dice = self.dice_score(outputs_array, targets_array)
+        #outputs_array = outputs[0].cpu().detach().numpy()
+        #targets_array = targets.cpu().detach().numpy()
+        #dice = self.dice_score(outputs_array, targets_array)
+        dice = self.mean_dice(outputs[0], targets)
         self.log('Dice Score/Train', dice)
         self.log('Loss/Train', loss)
         return {'loss': loss, 'dice': dice}
@@ -165,9 +176,10 @@ class LightningModel(pl.LightningModule):
         inputs, targets = batch
         outputs = self.net(inputs)
         loss = self.compute_loss(outputs, targets)
-        outputs_array = outputs[0].cpu().detach().numpy()
-        targets_array = targets.cpu().detach().numpy()
-        dice = self.dice_score(outputs_array, targets_array)
+        #outputs_array = outputs[0].cpu().detach().numpy()
+        #targets_array = targets.cpu().detach().numpy()
+        #dice = self.dice_score(outputs_array, targets_array)
+        dice = self.mean_dice(outputs[0], targets)
         self.log('Loss/Validation', loss)
         self.log('Dice Score/Validation', dice, prog_bar=True)
         return {'val_loss': loss, 'val_dice': dice}
