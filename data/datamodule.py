@@ -68,11 +68,20 @@ class DataModule(LightningDataModule):
         Returns:
             Tuple[Transform]: Two Callables to be used right after loading nifti files.
         """
-        transforms = [Normalize(range_norm=True, always_apply=True)]
+        transforms = []
         if patch_size is not None:
             transforms.append(RandomCrop(patch_size, always_apply=True))
-        train_transform = Compose(transforms, p=0.8)
-        test_transform  = Compose(transforms, p=0.8) 
+        transforms += [
+            #Flip(0),
+            #Flip(1),
+            #Flip(2),
+            #Transpose((1,0,2)), 
+            #RandomRotate90((0,1)),
+            #RandomGamma(),
+            GaussianNoise(),
+        ]
+        train_transform = Compose(transforms, p=0.6)
+        test_transform  = Compose(transforms, p=0.6) 
         return train_transform, test_transform
 
     def setup(self, stage: str=None) -> None:

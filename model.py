@@ -4,10 +4,8 @@
 
 import numpy as np
 import torch
-from torch.nn.functional import dropout
-from torch.nn.modules import activation
-from torch.optim import Adam
-from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau
+from torch.optim import Adam, SGD
+from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingWarmRestarts
 import pytorch_lightning as pl
 from typing import Tuple, Dict
 from network import MixAttNet
@@ -48,6 +46,12 @@ class LightningModel(pl.LightningModule):
         optimizer = Adam(self.net.parameters(),
                          lr           = self.hparams.lr,
                          weight_decay = self.hparams.weight_decay)
+        #optimizer = SGD(self.net.parameters(),
+        #                lr           = 0.1,
+        #                momentum     = 0,
+        #                dampening    = 0,
+        #                weight_decay = 5e-4,
+        #                nesterov     = False)
         #scheduler = MultiStepLR(optimizer,
         #                        milestones = self.hparams.milestones,
         #                        gamma      = self.hparams.gamma)
@@ -56,6 +60,10 @@ class LightningModel(pl.LightningModule):
                                       factor   = 0.25,
                                       patience = 20,
                                       verbose  = False)
+        #scheduler = CosineAnnealingWarmRestarts(optimizer, 20,
+        #                                        T_mult     = 1,
+        #                                        eta_min    = 0,
+        #                                        last_epoch = -1)
         return {'optimizer': optimizer, 'lr_scheduler': scheduler, 'monitor': 'val_loss'}
 
     def get_pos_weight(self, targets: torch.Tensor) -> torch.Tensor:

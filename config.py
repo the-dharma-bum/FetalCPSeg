@@ -50,7 +50,7 @@ class DataModule:
     input_root:                    str = "/homes/l17vedre/Bureau/Sanssauvegarde/patnum_data/train/"
     target_resolution:      Tuple[int] = (1.5*2, 1.5*2, 8)
     target_shape: Optional[Tuple[int]] = (128, 128, 26)
-    class_indexes:          Tuple[int] = (1, )
+    class_indexes:          Tuple[int] = (1, 2, 3, 4)
     patch_size:   Optional[Tuple[int]] = None   
     train_batch_size:              int = 2
     val_batch_size:                int = 2
@@ -95,7 +95,7 @@ class Train:
     in_channels:       int = 1
     supervision:      bool = True
     attention:        bool = True
-    depth:             int = 3
+    depth:             int = 4
     activation:  nn.Module = nn.PReLU
     se:               bool = False
     dropout:         float = 0.
