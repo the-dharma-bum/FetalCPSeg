@@ -71,15 +71,26 @@ class NiftiDataset(Dataset):
         return resample_img(image, target_affine=target_affine,
                             target_shape=self.target_shape, interpolation='nearest')
 
+    def get_array(self, path: str) -> np.ndarray:
+        """ Load a resampled 3d numpy array from a path to a nifti file.
+
+        Args:
+            path (str): Path of the nifti file. 
+
+        Returns:
+            np.ndarray: Array of shape self.target_shape and of resolution self.target_resolution.
+        """
+        return self.resample(nib.load(path)).get_fdata().astype(np.float32)
+
     @staticmethod
-    def normalize(data: np.ndarray) -> np.ndarray:
+    def normalize(image: np.ndarray) -> np.ndarray:
         """ Normalize pixel values to [0,1].
         Args:
-            data (np.ndarray): A 3D array (from a Nifti image).
+            image (np.ndarray): A 3D array (from a Nifti image).
         Returns:
             np.ndarray: A 3d array normalized.
         """
-        return (data - np.min(data))/(np.max(data) - np.min(data))
+        return (image - np.min(image))/(np.max(image) - np.min(image))
 
     def select_classes(self, mask: np.ndarray) -> None:
         """ A vanilla mask has 4 classes annotated as follows:
@@ -101,6 +112,22 @@ class NiftiDataset(Dataset):
         classes_to_delete = list(filter(lambda x: x not in self.class_indexes, all_classes))
         for class_index in classes_to_delete:
             mask[mask == class_index] = 0
+
+    def multi_hot_encoding(self, mask: np.ndarray) -> np.ndarray:
+        """ Create an array of shape (num_classes, mask.shape)
+        where each channel contains one binary mask for one class.
+
+        Args:
+            mask (np.ndarray): Shape (W, H, D).
+
+        Returns:
+            np.ndarray: Shape (num_classes, W, H, D).
+                        Note that num_classes = len(self.class_indexes)
+        """
+        encoded_mask =  np.zeros((len(self.class_indexes), *mask.shape))
+        for i, label in enumerate(self.class_indexes):
+            encoded_mask[i,:,:,:] = np.where(mask == label, 1, 0)
+        return encoded_mask
 
     def apply_transform(self, image: np.ndarray, mask: np.ndarray) -> Tuple[np.ndarray]:
         """ Apply a composition of 3D transformations to both image and mask arrays.
@@ -127,20 +154,18 @@ class NiftiDataset(Dataset):
         Returns:
             Tuple[np.ndarray, np.ndarray]: An image and a mask.
         """
-        image = nib.load(os.path.join(self.rootdir, self.image_list[index]))
-        mask  = nib.load(os.path.join(self.rootdir,  self.mask_list[index]))
-        image, mask = self.resample(image), self.resample(mask)
-        image_array, mask_array = image.get_fdata(), mask.get_fdata()
-        image_array, mask_array = image_array.astype(np.float32), mask_array.astype(np.float32)
+        image_array = self.get_array(os.path.join(self.rootdir, self.image_list[index]))
+        mask_array  = self.get_array(os.path.join(self.rootdir,  self.mask_list[index]))
         image_array = self.normalize(image_array)
-        self.select_classes(mask_array)
+        mask_array  = self.multi_hot_encoding(mask_array) 
+        #self.select_classes(mask_array)
         if self.transform is not None:
             image_array, mask_array = self.apply_transform(image_array, mask_array)
         image_tensor = torch.from_numpy(image_array)
         mask_tensor  = torch.from_numpy(mask_array)
-        # Permute from (width, height, depth) to (depth, widht, height) and add channel dim.
+        # Permute from (width, height, depth) to (depth, widht, height) and add channel dim on image array.
         image_tensor = rearrange(image_tensor, 'w h (d n) -> n d w h', n=1)
-        mask_tensor  = rearrange( mask_tensor, 'w h (d n) -> n d w h', n=1)
+        mask_tensor  = rearrange( mask_tensor, 'n w h d -> n d w h')
         return image_tensor, mask_tensor
 
     def __len__(self) -> int:

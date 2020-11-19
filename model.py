@@ -29,8 +29,8 @@ class LightningModel(pl.LightningModule):
         """
         super().__init__()
         self.save_hyperparameters()
-        self.net  = MixAttNet(self.hparams.in_channels, self.hparams.attention,
-                              self.hparams.supervision, self.hparams.depth,
+        self.net  = MixAttNet(self.hparams.in_channels, self.hparams.num_classes,
+                              self.hparams.attention, self.hparams.supervision, self.hparams.depth,
                               self.hparams.activation, self.hparams.se, self.hparams.dropout)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -192,7 +192,8 @@ class LightningModel(pl.LightningModule):
             verbose           = config.train.verbose,
             target_resolution = config.datamodule.target_resolution,
             target_shape      = config.datamodule.target_shape,
-            class_indexes     = config.datamodule.class_indexes,
             batch_size        = config.datamodule.train_batch_size,
             patch_size        = config.datamodule.patch_size,
+            class_indexes     = config.datamodule.class_indexes,
+            num_classes       = len(config.datamodule.class_indexes)
         )

@@ -20,12 +20,13 @@ class MixAttNet(nn.Module):
         Adapted from https://github.com/wulalago/FetalCPSeg/blob/master/Network/MixAttNet.py 
     """
 
-    def __init__(self, in_channels: int=1, attention: bool=True, supervision: bool=True,
+    def __init__(self, in_channels: int=1, num_classes: int=1, attention: bool=True, supervision: bool=True,
                  depth: int=4, activation: nn.Module = nn.PReLU, se: bool=True, dropout: float=0.3):
         """ Init the network to be trained.
 
         Args:
             in_channels (int, optional): Number of input 3d images channels. Defaults to 1.
+            num_classes (int, optional): Number of output channels, one for each label. 
             attention (bool, optional): If True, will refine the feature maps with a stagewise
                                         attention mechanism. Defaults to True.
             supervision (bool, optional): If True, will perfom 3d convolution at each stage
@@ -55,7 +56,7 @@ class MixAttNet(nn.Module):
             self.down_out  = nn.ModuleList(depth * [nn.Conv3d(16, 1, kernel_size=1)])
             self.mix_out   = nn.ModuleList(depth * [nn.Conv3d(16, 1, kernel_size=1)])
         self.last_block    = ConvBlock3D(depth * 16, 64, bias=True)
-        self.final_conv    = nn.Conv3d(64, 1, kernel_size=1)
+        self.final_conv    = nn.Conv3d(64, num_classes, kernel_size=1)
         self.non_linear    = activation()
 
     @staticmethod
