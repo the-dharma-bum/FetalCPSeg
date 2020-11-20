@@ -1,1 +1,2 @@
-from .colab import colab_training, get_data
+from .train import run_colab_training
+from .setup import setup, get_data

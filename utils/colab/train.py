@@ -31,6 +31,9 @@ def run_colab_training(dm_config, train_config):
     print('Did you forget to setup a GPU runtime ?')
 
 
+def download_outputs(file_module):
+  os.system('zip -r /content/output.zip /content/FetalCPSeg/lightning_logs/version_0/')
+  file_module.download("/content/output.zip")
 
 
 
