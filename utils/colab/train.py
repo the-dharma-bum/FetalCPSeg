@@ -1,5 +1,4 @@
 import os
-import subprocess
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, EarlyStopping
 from pytorch_lightning.utilities.exceptions import MisconfigurationException
