@@ -53,8 +53,8 @@ class MixAttNet(nn.Module):
         if self.use_attention:
             self.attention = nn.ModuleList(depth * [Attention(16, 16, activation)])
         if self.supervision:
-            self.down_out  = nn.ModuleList(depth * [nn.Conv3d(16, 1, kernel_size=1)])
-            self.mix_out   = nn.ModuleList(depth * [nn.Conv3d(16, 1, kernel_size=1)])
+            self.down_out  = nn.ModuleList(depth * [nn.Conv3d(16, num_classes, kernel_size=1)])
+            self.mix_out   = nn.ModuleList(depth * [nn.Conv3d(16, num_classes, kernel_size=1)])
         self.last_block    = ConvBlock3D(depth * 16, 64, bias=True)
         self.final_conv    = nn.Conv3d(64, num_classes, kernel_size=1)
         self.non_linear    = activation()

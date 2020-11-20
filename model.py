@@ -151,11 +151,8 @@ class LightningModel(pl.LightningModule):
                   methods from Lightning, e.g on_epoch_start, on_epoch_end, etc...
         """
         inputs, targets = batch        
-        outputs = self.net(inputs)
+        outputs = self(inputs)
         loss = self.compute_loss(outputs, targets)
-        #outputs_array = outputs[0].cpu().detach().numpy()
-        #targets_array = targets.cpu().detach().numpy()
-        #dice = self.dice_score(outputs_array, targets_array)
         dice = self.mean_dice(outputs[0], targets)
         self.log('Dice Score/Train', dice)
         self.log('Loss/Train', loss)
@@ -174,11 +171,8 @@ class LightningModel(pl.LightningModule):
                   methods from Lightning, e.g on_epoch_start, on_epoch_end, etc...
         """
         inputs, targets = batch
-        outputs = self.net(inputs)
+        outputs = self(inputs)
         loss = self.compute_loss(outputs, targets)
-        #outputs_array = outputs[0].cpu().detach().numpy()
-        #targets_array = targets.cpu().detach().numpy()
-        #dice = self.dice_score(outputs_array, targets_array)
         dice = self.mean_dice(outputs[0], targets)
         self.log('Loss/Validation', loss)
         self.log('Dice Score/Validation', dice, prog_bar=True)
