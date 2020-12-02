@@ -4,7 +4,6 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, EarlyStopping
 from model import LightningModel
 from data import DataModule
-from utils import VerboseCallback
 import config as cfg
 
 
@@ -51,7 +50,7 @@ baseline = cfg.Config(dm_baseline, train_baseline)
 # |                                                                                          | #
 # +------------------------------------------------------------------------------------------+ #
 
-trains_schedule = []
+trains_schedule = [baseline]                    # VERSION 0
 
 # +-------------------------------------------+ #
 # |                  ACTIVATION               | #
@@ -59,19 +58,19 @@ trains_schedule = []
 
 celu = deepcopy(baseline)
 celu.train.activation = nn.CELU
-trains_schedule.append(celu)
+trains_schedule.append(celu)                    # VERSION 1
 
 selu = deepcopy(baseline)
 selu.train.activation = nn.SELU
-trains_schedule.append(selu)
+trains_schedule.append(selu)                    # VERSION 2
 
 gelu = deepcopy(baseline)
 gelu.train.activation = nn.GELU
-trains_schedule.append(gelu)
+trains_schedule.append(gelu)                    # VERSION 3
 
 prelu = deepcopy(baseline)
 prelu.train.activation = nn.PReLU
-trains_schedule.append(prelu)
+trains_schedule.append(prelu)                   # VERSION 4
 
 baseline.train.activation = nn.PReLU
 
@@ -82,15 +81,15 @@ baseline.train.activation = nn.PReLU
 
 small = deepcopy(baseline)
 small.train.depth = 2
-trains_schedule.append(small)
+trains_schedule.append(small)                   # VERSION 5
 
 large = deepcopy(baseline)
 large.train.depth = 4
-trains_schedule.append(large)
+trains_schedule.append(large)                   # VERSION 6
 
 xtralarge = deepcopy(baseline)
 xtralarge.train.depth = 5
-trains_schedule.append(xtralarge)
+trains_schedule.append(xtralarge)               # VERSION 7
 
 # +-------------------------------------------+ #
 # |                  ATTENTION                | #
@@ -98,16 +97,16 @@ trains_schedule.append(xtralarge)
 
 attentive = deepcopy(baseline)
 attentive.train.attention = True
-trains_schedule.append(attentive)
+trains_schedule.append(attentive)               # VERSION 8
 
 supervised = deepcopy(baseline)
 supervised.train.supervision = True
-trains_schedule.append(supervised)
+trains_schedule.append(supervised)              # VERSION 9
 
 attentive_and_supervised = deepcopy(baseline)
 attentive_and_supervised.train.attention = True
 attentive_and_supervised.train.supervision = True
-trains_schedule.append(attentive_and_supervised)
+trains_schedule.append(attentive_and_supervised)# VERSION 10
 
 baseline.train.attention = True
 baseline.train.supervision = True
@@ -118,7 +117,7 @@ baseline.train.supervision = True
 
 se = deepcopy(baseline)
 se.train.se = True
-trains_schedule.append(se)
+trains_schedule.append(se)                      # VERSION 11
 
 
 # +-------------------------------------------+ #
@@ -127,39 +126,39 @@ trains_schedule.append(se)
 
 dropout_1 = deepcopy(baseline)
 dropout_1.train.dropout = 0.1
-trains_schedule.append(dropout_1)
+trains_schedule.append(dropout_1)               # VERSION 12
 
 dropout_2 = deepcopy(baseline)
 dropout_2.train.dropout = 0.2
-trains_schedule.append(dropout_2)
+trains_schedule.append(dropout_2)               # VERSION 13
 
 dropout_3 = deepcopy(baseline)
 dropout_3.train.dropout = 0.3
-trains_schedule.append(dropout_3)
+trains_schedule.append(dropout_3)               # VERSION 14
 
 dropout_4 = deepcopy(baseline)
 dropout_4.train.dropout = 0.4
-trains_schedule.append(dropout_4)
+trains_schedule.append(dropout_4)               # VERSION 15
 
 dropout_5 = deepcopy(baseline)
 dropout_5.train.dropout = 0.5
-trains_schedule.append(dropout_5)
+trains_schedule.append(dropout_5)               # VERSION 16
 
 dropout_6 = deepcopy(baseline)
 dropout_6.train.dropout = 0.6
-trains_schedule.append(dropout_6)
+trains_schedule.append(dropout_6)               # VERSION 17
 
 dropout_7 = deepcopy(baseline)
 dropout_7.train.dropout = 0.7
-trains_schedule.append(dropout_7)
+trains_schedule.append(dropout_7)               # VERSION 18
 
 dropout_8 = deepcopy(baseline)
 dropout_8.train.dropout = 0.8
-trains_schedule.append(dropout_8)
+trains_schedule.append(dropout_8)               # VERSION 19
 
 dropout_9 = deepcopy(baseline)
 dropout_9.train.dropout = 0.9
-trains_schedule.append(dropout_9)
+trains_schedule.append(dropout_9)               # VERSION 20
 
 
 
@@ -172,13 +171,12 @@ trains_schedule.append(dropout_9)
 
 def init_trainer(dev=False):
     lr_logger      = LearningRateMonitor()
-    verbose        = VerboseCallback()
     early_stopping = EarlyStopping(monitor   = 'val_loss',
                                     mode      = 'min', 
                                     min_delta = 0.001,
                                     patience  = 100,
                                     verbose   = True)
-    return Trainer(gpus=1, fast_dev_run=dev, callbacks = [lr_logger, verbose, early_stopping])
+    return Trainer(gpus=1, fast_dev_run=dev, callbacks = [lr_logger, early_stopping])
 
 
 def run_training(trainer, config):
@@ -195,8 +193,10 @@ def sanity_check(trains_schedule):
 
 
 def run_experiments(trains_schedule):
-    trainer = init_trainer(dev=False)
-    for config in trains_schedule:
+    for i, config in enumerate(trains_schedule):
+        print(80*'_')
+        print(f'TRAIN {i}/{len(trains_schedule)}')
+        trainer = init_trainer(dev=False)
         run_training(trainer, config)
 
 
