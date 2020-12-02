@@ -29,9 +29,7 @@ class LightningModel(pl.LightningModule):
         """
         super().__init__()
         self.save_hyperparameters()
-        self.net  = MixAttNet(self.hparams.in_channels, self.hparams.num_classes,
-                              self.hparams.attention, self.hparams.supervision, self.hparams.depth,
-                              self.hparams.activation, self.hparams.se, self.hparams.dropout)
+        self.net  = MixAttNet.from_config(self.hparams)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
@@ -46,24 +44,11 @@ class LightningModel(pl.LightningModule):
         optimizer = Adam(self.net.parameters(),
                          lr           = self.hparams.lr,
                          weight_decay = self.hparams.weight_decay)
-        #optimizer = SGD(self.net.parameters(),
-        #                lr           = 0.1,
-        #                momentum     = 0,
-        #                dampening    = 0,
-        #                weight_decay = 5e-4,
-        #                nesterov     = False)
-        #scheduler = MultiStepLR(optimizer,
-        #                        milestones = self.hparams.milestones,
-        #                        gamma      = self.hparams.gamma)
         scheduler = ReduceLROnPlateau(optimizer,
                                       mode     = 'min',
                                       factor   = 0.25,
                                       patience = 20,
                                       verbose  = False)
-        #scheduler = CosineAnnealingWarmRestarts(optimizer, 20,
-        #                                        T_mult     = 1,
-        #                                        eta_min    = 0,
-        #                                        last_epoch = -1)
         return {'optimizer': optimizer, 'lr_scheduler': scheduler, 'monitor': 'val_loss'}
 
     def get_pos_weight(self, targets: torch.Tensor) -> torch.Tensor:
@@ -127,15 +112,24 @@ class LightningModel(pl.LightningModule):
         outputs[outputs < ratio] = np.float32(0)    
         return float(2 * (targets * outputs).sum())/float(targets.sum() + outputs.sum())
 
-    def mean_dice(self, outputs, targets):
+    def mean_dice(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
+        """ Mean dice score over the segmentatinon classes.
+
+        Args:
+            outputs (torch.Tensor): Predicted masks, shape:
+                                    (batch_size, num_classes, depth, height, width)
+            targets (torch.Tensor): Ground truth masks, shape:
+                                    (batch_size, num_classes, depth, height, width)
+
+        Returns:
+            float: Mean dice
+        """
         dices = []
         for i in range(self.hparams.num_classes):
-            predicted_mask = outputs[:,i,:,:,:]
-            target_mask    = targets[:,i,:,:,:]
-            predicted_mask_array = predicted_mask.cpu().detach().numpy()
-            target_mask_array    = target_mask.cpu().detach().numpy()
+            predicted_mask_array = outputs[:,i,:,:,:].cpu().detach().numpy()
+            target_mask_array    = targets[:,i,:,:,:].cpu().detach().numpy()
             dices.append(self.dice_score(predicted_mask_array, target_mask_array))
-            return sum(dices)/len(dices)
+        return sum(dices)/len(dices)
 
     def training_step(self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int) -> Dict:
         """ Perform the classic training step (infere + compute loss) on a batch.
@@ -193,9 +187,6 @@ class LightningModel(pl.LightningModule):
             dropout           = config.train.dropout,
             lr                = config.train.lr,
             weight_decay      = config.train.weight_decay,
-            milestones        = config.train.milestones,
-            gamma             = config.train.gamma,
-            verbose           = config.train.verbose,
             target_resolution = config.datamodule.target_resolution,
             target_shape      = config.datamodule.target_shape,
             batch_size        = config.datamodule.train_batch_size,

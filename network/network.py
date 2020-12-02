@@ -1,5 +1,6 @@
 """ Here is defined  the main Mixed Attention Network class. """
 
+from os import defpath
 import torch
 from torch import nn
 from torch.tensor import Tensor
@@ -20,8 +21,9 @@ class MixAttNet(nn.Module):
         Adapted from https://github.com/wulalago/FetalCPSeg/blob/master/Network/MixAttNet.py 
     """
 
-    def __init__(self, in_channels: int=1, num_classes: int=1, attention: bool=True, supervision: bool=True,
-                 depth: int=4, activation: nn.Module = nn.PReLU, se: bool=True, dropout: float=0.3):
+    def __init__(self, in_channels: int=1, num_classes: int=1, attention: bool=True,
+                 supervision: bool=True, depth: int=4, activation: nn.Module = nn.PReLU,
+                 se: bool=True, dropout: float=0.3):
         """ Init the network to be trained.
 
         Args:
@@ -123,12 +125,25 @@ class MixAttNet(nn.Module):
         decoders_outputs = self.through_decoders(encoders_outputs)
         down_outputs     = self.through_down_modules(x, decoders_outputs)
         mix_outputs = down_outputs
-        if self.attention:
+        if self.use_attention:
             mix_outputs, attention_maps = self.through_attention_modules(down_outputs)
         out = self.through_last_block(mix_outputs)
         if self.supervision:
             return (out, *self.supervise(down_outputs, mix_outputs))
-        return out
+        return (out, None)
+
+    @classmethod
+    def from_config(cls, config):
+        return cls(
+            in_channels = config.in_channels,
+            attention   = config.attention,
+            supervision = config.supervision,
+            depth       = config.depth,
+            activation  = config.activation,
+            se          = config.se,
+            dropout     = config.dropout,
+            num_classes = config.num_classes
+        )
 
 
 

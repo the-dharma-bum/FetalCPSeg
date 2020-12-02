@@ -29,7 +29,7 @@ def init_trainer():
                                    patience=100, verbose=True)
     return Trainer.from_argparse_args(args, callbacks = [lr_logger, verbose, early_stopping])
 
-
+ 
 
 
 # +---------------------------------------------------------------------------------------------+ #

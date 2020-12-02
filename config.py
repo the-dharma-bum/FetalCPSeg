@@ -12,11 +12,11 @@ from dataclasses import dataclass
 from typing import Tuple, Optional
 
 
-# +---------------------------------------------------------------------------------------------+ #
-# |                                                                                             | #
-# |                                          DATAMODULE                                         | #
-# |                                                                                             | #
-# +---------------------------------------------------------------------------------------------+ #
+# +------------------------------------------------------------------------------------------+ #
+# |                                                                                          | #
+# |                                         DATAMODULE                                       | #
+# |                                                                                          | #
+# +------------------------------------------------------------------------------------------+ #
 
 @dataclass
 class DataModule:
@@ -28,9 +28,10 @@ class DataModule:
         input_root (str): The path of the folder containing the images and masks.
         target_resolution (Tuple[int]): The resolution (x, y, z) after resampling, that is
                                         one voxel sizes in mm3. 
-        target_shape (Tuple[int], optional): Shape of one image after resampling. Will reshape by
-                                             resampling. If None, resampling will affect the
-                                             resolution only and not the shape. Defaults to None.
+        target_shape (Tuple[int], optional): Shape of one image after resampling. Will reshape
+                                             by resampling. If None, resampling will affect the
+                                             resolution only and not the shape.
+                                             Defaults to None.
         class_indexes (Tuple[int]): A vanilla mask has 4 classes annotated as follows:
                                     * Background...: 0
                                     * Liver........: 1
@@ -59,11 +60,11 @@ class DataModule:
 
 
 
-# +---------------------------------------------------------------------------------------------+ #
-# |                                                                                             | #
-# |                                             TRAIN                                           | #
-# |                                                                                             | #
-# +---------------------------------------------------------------------------------------------+ #
+# +------------------------------------------------------------------------------------------+ #
+# |                                                                                          | #
+# |                                          TRAIN                                           | #
+# |                                                                                          | #
+# +------------------------------------------------------------------------------------------+ #
 
 @dataclass
 class Train:
@@ -73,8 +74,8 @@ class Train:
     Args:
 
         in_channels (int): Number of channels for input images and masks.
-        supervision (bool): If True, the loss will be a weighted sum of losses computed at several
-                            depths in the network.
+        supervision (bool): If True, the loss will be a weighted sum of losses computed at 
+                            several depths in the network.
         attention (bool): Controls the use of Attention Module in the network.
         depth: (int): How many Residual Blocks should the encoder and decoder have ?
         activation (nn.Module): Which non linear layer to use ? Can be any Pytorch activation
@@ -84,26 +85,18 @@ class Train:
         dropout (float): If > 0, add a Dropout Layer of specifed rate at the end of every encoder
                          and decoder Residual Blocks. 
         lr (float): Initial learning rate.
-        weight_decay (float): L2 penalty of model's weights. 
-        milestones (Tuple[int]): Tuple of epoch indices. Must be increasing.
-                                 Note that we used tuple insted of list to avoid mutability issues.
-        gamma (float): Multiplicative factor of learning rate decay.
-                       Learning rate will be multiplied by gamme every epoch in milestones.
-        verbose (bool): Should scheduler print when it acts on the learning rate.   
+        weight_decay (float): L2 penalty of model's weights.   
     """
 
     in_channels:       int = 1
     supervision:      bool = True
     attention:        bool = True
-    depth:             int = 4
+    depth:             int = 3
     activation:  nn.Module = nn.PReLU
-    se:               bool = False
+    se:               bool = True
     dropout:         float = 0.
     lr:              float = 1e-3
     weight_decay:    float = 5e-4
-    milestones: Tuple[int] = (50, 75, 100)
-    gamma:          float  = 0.1
-    verbose:         bool  = True
 
 
 

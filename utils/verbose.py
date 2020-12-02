@@ -264,7 +264,7 @@ class VerboseCallback(Callback):
         # using the learning rate monitor callback. 
         scheduler_name = trainer.callbacks[0].lr_sch_names[0]
         lr = trainer.callbacks[0]._extract_lr(trainer, 'epoch')[scheduler_name]
-        self.state.lr = lr
+        self.state.lr = lr  
 
     def on_fit_end(self, *args):
         print(2*'\n')

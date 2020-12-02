@@ -90,28 +90,7 @@ class NiftiDataset(Dataset):
         Returns:
             np.ndarray: A 3d array normalized.
         """
-        return (image - np.min(image))/(np.max(image) - np.min(image))
-
-    def select_classes(self, mask: np.ndarray) -> None:
-        """ A vanilla mask has 4 classes annotated as follows:
-            * Background...: 0
-            * Liver........: 1
-            * Right kidney.: 2
-            * Left  kidney.: 3
-            * Spleen.......: 4
-
-        Note that this function doesn't return anything but instead acts on the mask directly.
-        That is because numpy's ndarrays are mutable objects and create a copy would be time and
-        space consuming while being unnecessary.
-
-        Args:
-            mask (np.ndarray): A 3D array acting of values in {0, 1, 2, 3, 4} acting as a
-                               segmentation mask. 
-        """
-        all_classes = [1,2,3,4]
-        classes_to_delete = list(filter(lambda x: x not in self.class_indexes, all_classes))
-        for class_index in classes_to_delete:
-            mask[mask == class_index] = 0
+        return (image - np.min(image)) / (np.max(image) - np.min(image))
 
     def multi_hot_encoding(self, mask: np.ndarray) -> np.ndarray:
         """ Create an array of shape (num_classes, mask.shape)
@@ -128,7 +107,7 @@ class NiftiDataset(Dataset):
         for i, label in enumerate(self.class_indexes):
             encoded_mask[i,:,:,:] = np.where(mask == label, 1, 0)
         return encoded_mask
-
+ 
     def apply_transform(self, image: np.ndarray, mask: np.ndarray) -> Tuple[np.ndarray]:
         """ Apply a composition of 3D transformations to both image and mask arrays.
             See https://github.com/ashawkey/volumentations and datamodule.py.
@@ -145,7 +124,7 @@ class NiftiDataset(Dataset):
         transformed_data = self.transform(**data)
         return transformed_data['image'], transformed_data['mask']
 
-    def __getitem__(self, index: int) -> Tuple[torch.FloatTensor, torch.FloatTensor]:
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         """ Load, apply transforms and return a couple (image, mask).
 
         Args:
@@ -158,14 +137,14 @@ class NiftiDataset(Dataset):
         mask_array  = self.get_array(os.path.join(self.rootdir,  self.mask_list[index]))
         image_array = self.normalize(image_array)
         mask_array  = self.multi_hot_encoding(mask_array) 
-        #self.select_classes(mask_array)
         if self.transform is not None:
             image_array, mask_array = self.apply_transform(image_array, mask_array)
         image_tensor = torch.from_numpy(image_array)
         mask_tensor  = torch.from_numpy(mask_array)
-        # Permute from (width, height, depth) to (depth, widht, height) and add channel dim on image array.
+        # Permute from (width, height, depth) to (depth, widht, height)
+        # and add channel dim on image array.
         image_tensor = rearrange(image_tensor, 'w h (d n) -> n d w h', n=1)
-        mask_tensor  = rearrange( mask_tensor, 'n w h d -> n d w h')
+        mask_tensor  = rearrange(mask_tensor, 'n w h d -> n d w h')
         return image_tensor, mask_tensor
 
     def __len__(self) -> int:
