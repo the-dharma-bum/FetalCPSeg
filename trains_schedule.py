@@ -188,10 +188,17 @@ def run_training(trainer, config):
     trainer.fit(model, data)
 
 
-def sanity_check(runs_configs):
+def sanity_check(trains_schedule):
     trainer = init_trainer(dev=True)
-    for config in runs_configs:
+    for config in trains_schedule:
         run_training(trainer, config)
 
 
-sanity_check(trains_schedule)
+def run_experiments(trains_schedule):
+    trainer = init_trainer(dev=False)
+    for config in trains_schedule:
+        run_training(trainer, config)
+
+
+#sanity_check(trains_schedule)
+run_experiments(trains_schedule)
