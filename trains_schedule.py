@@ -8,6 +8,7 @@ import config as cfg
 
 
 ROOTDIR = "/homes/l17vedre/Bureau/Sanssauvegarde/patnum_data/train/"
+LOGDIR  = "/homes/l17vedre/Bureau/Sanssauvegarde/patnum_data/"
     
 
 # +------------------------------------------------------------------------------------------+ #
@@ -176,7 +177,8 @@ def init_trainer(dev=False):
                                     min_delta = 0.001,
                                     patience  = 100,
                                     verbose   = True)
-    return Trainer(gpus=1, fast_dev_run=dev, callbacks = [lr_logger, early_stopping])
+    return Trainer(default_root_dir=LOGDIR, gpus=1, fast_dev_run=dev,
+                   callbacks = [lr_logger, early_stopping])
 
 
 def run_training(trainer, config):
