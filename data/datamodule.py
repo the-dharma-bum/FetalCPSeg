@@ -72,12 +72,12 @@ class DataModule(LightningDataModule):
         if patch_size is not None:
             transforms.append(RandomCrop(patch_size, always_apply=True))
         transforms += [
-            #Flip(0),
-            #Flip(1),
-            #Flip(2),
-            #Transpose((1,0,2)), 
-            #RandomRotate90((0,1)),
-            #RandomGamma(),
+            Flip(0),
+            Flip(1),
+            Flip(2),
+            Transpose((1,0,2)), 
+            RandomRotate90((0,1)),
+            RandomGamma(),
             GaussianNoise(),
         ]
         train_transform = Compose(transforms, p=0.6)

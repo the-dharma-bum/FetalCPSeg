@@ -8,8 +8,8 @@ import config as cfg
 
 
 ROOTDIR = "/homes/l17vedre/Bureau/Sanssauvegarde/patnum_data/train/"
-LOGDIR  = "/homes/l17vedre/Bureau/Sanssauvegarde/patnum_data/"
-    
+LOGDIR  = "/homes/l17vedre/Bureau/Sanssauvegarde/patnum_output/monoclass_logs"
+
 
 # +------------------------------------------------------------------------------------------+ #
 # |                                                                                          | #
@@ -21,7 +21,7 @@ dm_baseline = cfg.DataModule(
     input_root         = ROOTDIR,
     target_resolution  = (1.5*2, 1.5*2, 8),
     target_shape       = (128, 128, 26),
-    class_indexes      = (1, 2, 3, 4),
+    class_indexes      = (1, ),
     patch_size         = None,
     train_batch_size   = 2,
     val_batch_size     = 2,
@@ -92,6 +92,7 @@ xtralarge = deepcopy(baseline)
 xtralarge.train.depth = 5
 trains_schedule.append(xtralarge)               # VERSION 7
 
+
 # +-------------------------------------------+ #
 # |                  ATTENTION                | #
 # +-------------------------------------------+ #
@@ -111,6 +112,7 @@ trains_schedule.append(attentive_and_supervised)# VERSION 10
 
 baseline.train.attention = True
 baseline.train.supervision = True
+
 
 # +-------------------------------------------+ #
 # |              SQUEEZE AND EXCITE           | #

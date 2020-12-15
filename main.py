@@ -26,7 +26,7 @@ def init_trainer():
     lr_logger      = LearningRateMonitor()
     verbose        = VerboseCallback()
     early_stopping = EarlyStopping(monitor='val_loss', mode='min', min_delta=0.001, 
-                                   patience=100, verbose=True)
+                                   patience=50, verbose=True)
     return Trainer.from_argparse_args(args, callbacks = [lr_logger, verbose, early_stopping])
 
  

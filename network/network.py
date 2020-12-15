@@ -119,7 +119,7 @@ class MixAttNet(nn.Module):
     def through_last_block(self, mix_outputs: List[torch.Tensor]) -> torch.Tensor:
         return self.final_conv(self.non_linear(self.last_block(torch.cat(mix_outputs, dim=1))))
 
-    def forward(self, x: torch.Tensor) -> Union[torch.Tensor, Tuple[torch.Tensor, List[torch.Tensor]]]:
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor]:
         x = self.non_linear(self.init_block(x))
         encoders_outputs = self.through_encoders(x)
         decoders_outputs = self.through_decoders(encoders_outputs)
@@ -131,6 +131,14 @@ class MixAttNet(nn.Module):
         if self.supervision:
             return (out, *self.supervise(down_outputs, mix_outputs))
         return (out, None)
+
+    def get_attention_map(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.non_linear(self.init_block(x))
+        encoders_outputs = self.through_encoders(x)
+        decoders_outputs = self.through_decoders(encoders_outputs)
+        down_outputs     = self.through_down_modules(x, decoders_outputs)
+        mix_outputs, attention_maps = self.through_attention_modules(down_outputs)
+        return attention_maps
 
     @classmethod
     def from_config(cls, config):

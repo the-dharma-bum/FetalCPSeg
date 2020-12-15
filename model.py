@@ -4,11 +4,12 @@
 
 import numpy as np
 import torch
-from torch.optim import Adam, SGD
-from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingWarmRestarts
+import torch.optim as optim
+import torch.optim.lr_scheduler as scheduler
 import pytorch_lightning as pl
 from typing import Tuple, Dict
 from network import MixAttNet
+from network.utils import init_optimizer, init_scheduler
 
 
 class LightningModel(pl.LightningModule):
@@ -41,14 +42,8 @@ class LightningModel(pl.LightningModule):
                   a Trainer object using this model. 
                   The 'monitor' key may be used by some schedulers (e.g: ReduceLROnPlateau).                        
         """
-        optimizer = Adam(self.net.parameters(),
-                         lr           = self.hparams.lr,
-                         weight_decay = self.hparams.weight_decay)
-        scheduler = ReduceLROnPlateau(optimizer,
-                                      mode     = 'min',
-                                      factor   = 0.25,
-                                      patience = 20,
-                                      verbose  = False)
+        optimizer = init_optimizer(self.net, self.hparams)
+        scheduler = init_scheduler(optimizer, self.hparams)
         return {'optimizer': optimizer, 'lr_scheduler': scheduler, 'monitor': 'val_loss'}
 
     def get_pos_weight(self, targets: torch.Tensor) -> torch.Tensor:
@@ -185,6 +180,8 @@ class LightningModel(pl.LightningModule):
             activation        = config.train.activation,
             se                = config.train.se,
             dropout           = config.train.dropout,
+            optimizer         = config.train.optimizer,
+            scheduler         = config.train.scheduler,
             lr                = config.train.lr,
             weight_decay      = config.train.weight_decay,
             target_resolution = config.datamodule.target_resolution,

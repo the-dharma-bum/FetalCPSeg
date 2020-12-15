@@ -41,17 +41,17 @@ class DataModule:
                                    This parameter gives class indexes to keep for the
                                    classification task.
                                    E.g: (1, 2) to segment liver and right kidney only.
-        patch_size (Tuple[int], optional) : If not None, random patches will be cropped out from 
+        patch_size (Tuple[int], optional) : If not None, random patches will be cropped out from
                                             image.
         train_batch_size (int): Batch size of the training dataloader.
         val_batch_size (int): Batch size of the validation dataloader.
         num_workers (int): Num of threads for the 3 dataloaders (train, val, test).
     """
 
-    input_root:                    str = "/homes/l17vedre/Bureau/Sanssauvegarde/patnum_data/train/"
+    input_root: str = "/homes/l17vedre/Bureau/Sanssauvegarde/patnum_data/train/"
     target_resolution:      Tuple[int] = (1.5*2, 1.5*2, 8)
     target_shape: Optional[Tuple[int]] = (128, 128, 26)
-    class_indexes:          Tuple[int] = (1, 2, 3, 4)
+    class_indexes:          Tuple[int] = (1, )
     patch_size:   Optional[Tuple[int]] = None   
     train_batch_size:              int = 2
     val_batch_size:                int = 2
@@ -80,32 +80,34 @@ class Train:
         depth: (int): How many Residual Blocks should the encoder and decoder have ?
         activation (nn.Module): Which non linear layer to use ? Can be any Pytorch activation
                                 function.
-        se (bool): Use Squeeze and Excite or not. If True, add a Squeeze and excite layer with a 
+        se (bool): Use Squeeze and Excite or not. If True, add a Squeeze and excite layer with a
                    reduction of 1 at the end of every encoder and decoder Residual Blocks.
-        dropout (float): If > 0, add a Dropout Layer of specifed rate at the end of every encoder
-                         and decoder Residual Blocks. 
+        dropout (float): If > 0, add a Dropout Layer of specifed rate at the end of every
+                         encoder and decoder Residual Blocks. 
         lr (float): Initial learning rate.
-        weight_decay (float): L2 penalty of model's weights.   
+        weight_decay (float): L2 penalty of model's weights. 
     """
 
     in_channels:       int = 1
     supervision:      bool = True
     attention:        bool = True
-    depth:             int = 3
-    activation:  nn.Module = nn.PReLU
+    depth:             int = 4
+    activation:  nn.Module = nn.CELU
     se:               bool = True
-    dropout:         float = 0.
+    dropout:         float = 0.7
+    optimizer:         str = 'adam'
+    scheduler:         str = 'rop' 
     lr:              float = 1e-3
     weight_decay:    float = 5e-4
 
 
 
 
-# +---------------------------------------------------------------------------------------------+ #
-# |                                                                                             | #
-# |                                            CONFIG                                           | #
-# |                                                                                             | #
-# +---------------------------------------------------------------------------------------------+ #
+# +------------------------------------------------------------------------------------------+ #
+# |                                                                                          | #
+# |                                          CONFIG                                          | #
+# |                                                                                          | #
+# +------------------------------------------------------------------------------------------+ #
 
 @dataclass
 class Config:
